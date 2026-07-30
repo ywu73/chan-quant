@@ -1,10 +1,20 @@
-# 策略规则说明书
+# Independent v0.1 策略规则说明书
 
-状态说明：`CONFIRMED` 表示已从参考界面可靠推导；`UNCONFIRMED` 表示仍需原始公式或人工样例。
+## 规则身份与状态
+
+参考界面的作者没有提供原始公式，因此本项目不再以复刻其算法为目标。本文使用三种状态，避免把可见展示、独立约定和待开发能力混在一起：
+
+| 状态 | 含义 |
+|---|---|
+| `CONFIRMED_DISPLAY` | 仅指可以从参考界面数值关系可靠核对的展示公式 |
+| `SELECTED_DRAFT` | 本项目为 Independent v0.1 主动选择、已有代码与测试的工程规则 |
+| `UNIMPLEMENTED` | 尚未定义或实现，不得在界面或说明中暗示已经具备 |
+
+`SELECTED_DRAFT` 不等于“参考作者公式已确认”，也不等于“正统缠论规则”。
 
 ## 已确认的展示公式
 
-### 现价相对指标线（CONFIRMED）
+### 现价相对指标线（CONFIRMED_DISPLAY）
 
 ```text
 relative_to_line = current_price / line_value - 1
@@ -12,37 +22,82 @@ relative_to_line = current_price / line_value - 1
 
 适用于买线、卖线与 MA57 卡片。
 
-### 买卖线差（CONFIRMED）
+### 买卖线差（CONFIRMED_DISPLAY）
 
 ```text
 line_spread_pct = buy_line / sell_line - 1
 line_spread_abs = buy_line - sell_line
 ```
 
-### 历史胜率（CONFIRMED）
+### 事件成功率（CONFIRMED_DISPLAY）
 
 ```text
 success_rate = successes / eligible_signals
 ```
 
-未来 5/10/20 日收益栏的汇总方式仍为 `UNCONFIRMED`。
+Independent v0.1 的 5/10/20 根事件收益口径属于下文的 `SELECTED_DRAFT`，不是从截图反推出的原算法。
 
-## 待确认规则
+## Independent v0.1 计算规则
 
-| 规则 | 状态 | 需要的证据 |
-|---|---|---|
-| K 线包含关系 | UNCONFIRMED | 上升/下降包含处理及相等高低点样例 |
-| 顶底分型 | UNCONFIRMED | 窗口、确认时点及冲突处理 |
-| 成笔规则 | UNCONFIRMED | 最小间隔、延伸、替换和破坏规则 |
-| 买线 | UNCONFIRMED | 完整公式、参数和输入价格 |
-| 卖线 | UNCONFIRMED | 完整公式、参数和输入价格 |
-| 短通道（24日） | UNCONFIRMED | 通道算法和多空切换条件 |
-| 长通道（90日） | UNCONFIRMED | 通道算法和多空切换条件 |
-| 日/周均线状态 | UNCONFIRMED | 均线组合、斜率和强度阈值 |
-| 多周期 1/4 共振 | UNCONFIRMED | 四个组成条件及计分方式 |
-| 顶/底背驰 | UNCONFIRMED | MACD 参数、比较区间及结构对应规则 |
-| 一买/一卖 | UNCONFIRMED | 信号定义、确认时点及冷却规则 |
-| 事件研究成功条件 | UNCONFIRMED | 执行价、成本、收益阈值及卖出含义 |
+### 市场数据与指标（SELECTED_DRAFT）
+
+默认研究语境是 A 股日线。复权方式由数据源提供并显式标记，程序不自动猜测。
+
+| 项目 | v0.1 定义 |
+|---|---|
+| 买线 | 收盘价 `EMA24`，前 23 根为预热空值 |
+| 卖线 | 收盘价 `EMA90`，前 89 根为预热空值 |
+| 趋势线 | 收盘价 `SMA57` |
+| 买卖线差 | `EMA24 / EMA90 - 1` |
+| 短通道 | 前 24 根 K 线的 Donchian 最高/最低，不包含当前 K 线 |
+| 长通道 | 前 90 根 K 线的 Donchian 最高/最低，不包含当前 K 线 |
+
+收盘价向上突破通道上沿后，通道状态切换为多头；向下突破下沿后切换为空头；未发生反向突破时延续已有状态。相等不算突破。
+
+### 日线、周线与四项共振（SELECTED_DRAFT）
+
+日线多头：
+
+```text
+close[t] > SMA57[t] > SMA57[t-5]
+```
+
+日线空头使用完全相反的不等式，否则为中性。
+
+周线只使用当前日线所在周之前的上一完整周，避免把尚未收盘的本周周线当成已知事实。周线使用 `EMA13 / EMA26`：上一完整周收盘价高于 `EMA13` 且 `EMA13 > EMA26` 为多头；反向为空头；两条均线同时沿同方向变化时标为强势。
+
+共振的四个等权组成项是：短通道、长通道、日线趋势、周线趋势。每个多头或空头状态各计 1 分，中性不计分。
+
+### 严格三 K 分型与简化笔（SELECTED_DRAFT）
+
+顶分型要求中间 K 线的最高价和最低价都严格高于左右两根；底分型要求两者都严格低于左右两根。任何相等关系都不成立。分型归属在中间 K 线，但直到右侧 K 线收盘才确认。
+
+笔锚点必须顶底交替，枢轴索引最小间隔为 4。同类连续分型只保留更极端者。最后一笔保持 `TENTATIVE`，只有出现后续有效锚点后，之前的笔才成为 `CONFIRMED`。这是一套简化结构算法，没有实现缠论中的 K 线包含处理、中枢或背驰。
+
+### 候选买入与候选退出（SELECTED_DRAFT）
+
+底分型确认后建立候选买入 setup。以下条件首次同时满足时产生候选买入信号：
+
+```text
+EMA24[t] > EMA24[t-1]
+spread[t] > spread[t-1] > spread[t-2]
+bullish_resonance[t] >= 2
+```
+
+顶分型确认后建立候选退出 setup，并使用完全相反的 EMA24 方向、线差方向和空头共振条件。`SELL` 在 v0.1 中只表示已有多头仓位的退出警告，不代表建立空头，也不计算做空盈亏。
+
+setup 从分型确认收盘后生效，一直保留到下一个相反分型确认；没有任意的 20 日过期规则。在相反分型尚未确认前，旧 setup 仍可基于当时已知数据触发。每个 setup 最多产生一次信号，同方向信号另有 10 根 K 线冷却期。
+
+### 事件研究（SELECTED_DRAFT）
+
+信号在触发 K 线收盘时确认，使用下一根可用 K 线开盘价作为事件执行价。若执行索引为 `e`，N 根收益的目标收盘索引是：
+
+```text
+target_index = e + N - 1
+forward_return = close[target_index] / open[e] - 1
+```
+
+候选买入的成功条件是远期收益大于 0；候选退出的成功条件是远期收益小于 0。尚无下一根 K 线或尚未走完对应观察期的事件不进入该周期的 `eligible`。事件研究未计佣金、印花税、滑点、涨跌停、停牌和成交能力，不能解释为可实现收益。
 
 ## 时间真实性契约
 
@@ -52,8 +107,20 @@ success_rate = successes / eligible_signals
 structure_at <= confirmed_at <= executable_at
 ```
 
-- `structure_at`：结构在图上的归属时间；
-- `confirmed_at`：使用当时可见数据首次确认的时间；
-- `executable_at`：按照市场规则最早可执行的时间。
+- `structure_at`：结构在图上的归属时间；候选信号使用其分型枢轴时间；
+- `confirmed_at`：全部信号条件首次同时满足的收盘时间，可能晚于分型自身的确认；
+- `executable_at`：下一根已存在 K 线的开盘时间；数据刚停在确认根时暂为空。
 
 图表允许把分型画在枢轴 K 线上，但事件研究和回测只能使用 `executable_at` 对应的可成交价格。
+
+## 未实现能力
+
+| 能力 | 状态 | 当前边界 |
+|---|---|---|
+| K 线包含关系 | `UNIMPLEMENTED` | 使用原始 K 线直接识别严格三 K 分型 |
+| 中枢、背驰、一买一卖等完整缠论语义 | `UNIMPLEMENTED` | 页面不得显示为已计算结论 |
+| 真实行情提供方与自动复权 | `UNIMPLEMENTED` | 仅支持本地 CSV 适配器 |
+| 交易成本与市场微观规则 | `UNIMPLEMENTED` | 事件研究为无成本的机械观察 |
+| 持仓、资金曲线与组合回测 | `UNIMPLEMENTED` | `SELL` 仅按退出后跌幅做事件观察 |
+| 参数寻优和样本外验证 | `UNIMPLEMENTED` | 当前参数是冻结草案，不代表有效性证明 |
+| 券商、下单与实盘风控 | `UNIMPLEMENTED` | 明确不在 v0.1 范围内 |

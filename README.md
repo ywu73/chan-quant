@@ -1,12 +1,12 @@
 # Chan Quant
 
-缠论量化研究台。项目目标是把分型、笔、通道、买卖线与多周期状态转换为可复现、可审计且不使用未来数据的研究系统。
+Chan Quant 是一个结构与趋势量化研究台。它把严格三 K 分型、简化笔、均线、Donchian 通道、多周期状态和候选信号转换为可复现、可审计且不使用未来数据的计算结果。
 
-当前处于初始架构阶段。真实策略公式尚未确认，界面和 API 中只能使用明确标注的 mock 数据。
+当前策略版本为 **Independent v0.1 草案**。它是本项目独立选择的一套工程规则，不是参考截图作者的原始公式，也不声称是“标准”或“正统”缠论。系统仍是研究与审计工具，不提供实盘交易能力。
 
 ## 本地运行
 
-启动 mock API：
+启动 API。未配置行情文件时，后端使用确定性合成数据，并在响应和页面中明确标记：
 
 ```bash
 cd backend
@@ -22,7 +22,21 @@ npm ci
 npm run dev -- --host 127.0.0.1
 ```
 
-打开 `http://127.0.0.1:5173/`。页面顶部会明确显示 mock 数据警告。
+打开 `http://127.0.0.1:5173/`。
+
+### 使用本地 CSV
+
+CSV 至少需要 `trade_date`（或 `date`）、`open`、`high`、`low`、`close`、`volume` 六列，可选 `amount`。Independent v0.1 的 EMA90 预热要求至少 92 根有效日 K：
+
+```bash
+cd backend
+CHAN_QUANT_CSV_PATH=/absolute/path/to/bars.csv \
+CHAN_QUANT_ADJUSTMENT=qfq \
+CHAN_QUANT_INSTRUMENT_NAME='研究标的' \
+uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
+```
+
+`CHAN_QUANT_ADJUSTMENT` 只记录数据提供方声明的复权口径，程序不会自行推断或复权。接入 CSV 后 `is_mock=false`，但策略规则状态仍为 `DRAFT`，不能据此宣称已经验证有效。
 
 ## 验证
 
@@ -36,11 +50,13 @@ npm test
 npm run build
 ```
 
-产品范围、规则状态与 API 合同见 `docs/`。
+规则口径、数据合同、架构和产品边界见 `docs/`。
 
 ## 边界
 
 - 研究和可视化优先，不连接券商或自动下单。
 - 策略事件分别记录结构时间、确认时间与最早可执行时间。
 - 页面展示与策略计算分离，前端不得重新实现交易规则。
+- 合成数据上的信号数量和事件统计只验证计算链路，不代表真实市场表现。
+- 当前没有交易成本、滑点、涨跌停、停牌、分红处理或组合资金曲线。
 - 行情、凭证、API Token 与本地缓存不提交到 Git。
