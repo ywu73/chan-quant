@@ -1,0 +1,32 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# JavaScript
+node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Local data and databases
+data/*
+!data/.gitkeep
+*.duckdb
+*.sqlite
+*.sqlite3
+
+# Editors
+.idea/
+.vscode/
+
