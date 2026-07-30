@@ -8,6 +8,8 @@ export interface Instrument {
   last_price: number;
   currency: string;
   data_updated_at: string;
+  data_source: string;
+  adjustment: string;
 }
 
 export interface StatusChip {
@@ -63,9 +65,9 @@ export interface ChartBar {
   low: number;
   close: number;
   volume: number;
-  buy_line: number;
-  sell_line: number;
-  ma57: number;
+  buy_line: number | null;
+  sell_line: number | null;
+  ma57: number | null;
 }
 
 export interface FractalMarker {
@@ -78,6 +80,7 @@ export interface FractalMarker {
 export interface Stroke {
   direction: "UP" | "DOWN";
   points: Array<{ date: string; price: number }>;
+  status: "CONFIRMED" | "TENTATIVE";
 }
 
 export interface SignalMarker {
@@ -89,7 +92,7 @@ export interface SignalMarker {
   timing: {
     structure_at: string;
     confirmed_at: string;
-    executable_at: string;
+    executable_at: string | null;
   };
   reasons: string[];
 }

@@ -46,6 +46,7 @@ export function ChanChart({ chart }: { chart: DashboardSnapshot["chart"] }) {
       lineStyle: {
         width: 2,
         color: stroke.direction === "UP" ? "#48b968" : "#ef665e",
+        type: stroke.status === "TENTATIVE" ? "dashed" : "solid",
       },
       tooltip: { show: false },
       z: 5,

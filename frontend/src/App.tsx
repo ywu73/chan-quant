@@ -22,13 +22,20 @@ function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
           <span>{instrument.symbol}</span>
           <span>日线</span>
           <span>截至 {instrument.as_of}</span>
+          <span>{instrument.data_source}</span>
+          <span>复权：{instrument.adjustment}</span>
           <span>{snapshot.strategy.version}</span>
         </div>
       </header>
 
       {snapshot.is_mock && (
         <div className="mock-banner">
-          MOCK 界面数据 · 策略公式尚未确认 · 不代表真实行情、回测或交易建议
+          合成行情 · Independent v0.1 草案规则实时计算 · 不代表真实行情、回测或交易建议
+        </div>
+      )}
+      {!snapshot.is_mock && snapshot.strategy.rule_status === "DRAFT" && (
+        <div className="mock-banner">
+          外部 CSV 行情 · Independent v0.1 仍是待验证草案 · 不代表交易建议
         </div>
       )}
 
@@ -65,7 +72,9 @@ function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
 
       <section className="performance-section">
         <h2>〽 买卖点历史成功率 · 近 {performance.lookback_years} 年 · {performance.headline_total} 个信号</h2>
-        <p className="section-note">演示统计：含 {performance.excluded_total} 个排除项，真实口径尚未确认</p>
+        <p className="section-note">
+          草案事件研究：买点统计后续上涨，退出点统计后续下跌；含 {performance.excluded_total} 个排除项
+        </p>
         <div className="performance-grid">
           <PerformanceCard performance={performance.buy} />
           <PerformanceCard performance={performance.sell} />
