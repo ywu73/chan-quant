@@ -18,6 +18,7 @@ build/
 node_modules/
 frontend/dist/
 frontend/coverage/
+*.tsbuildinfo
 
 # Local data and databases
 data/*
@@ -29,4 +30,3 @@ data/*
 # Editors
 .idea/
 .vscode/
-
