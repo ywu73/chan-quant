@@ -11,11 +11,13 @@ TrendState = Literal["BULLISH", "BEARISH", "NEUTRAL"]
 class StructuralTiming(BaseModel):
     structure_at: datetime
     confirmed_at: datetime
-    executable_at: datetime
+    executable_at: datetime | None
 
     @model_validator(mode="after")
     def validate_time_order(self) -> StructuralTiming:
-        if not self.structure_at <= self.confirmed_at <= self.executable_at:
+        if self.structure_at > self.confirmed_at:
+            raise ValueError("expected structure_at <= confirmed_at")
+        if self.executable_at is not None and self.confirmed_at > self.executable_at:
             raise ValueError("expected structure_at <= confirmed_at <= executable_at")
         return self
 
@@ -28,6 +30,8 @@ class Instrument(BaseModel):
     last_price: float
     currency: str = "CNY"
     data_updated_at: datetime
+    data_source: str = "synthetic"
+    adjustment: str = "unknown"
 
 
 class StatusChip(BaseModel):
@@ -110,9 +114,9 @@ class ChartBar(BaseModel):
     low: float
     close: float
     volume: int
-    buy_line: float
-    sell_line: float
-    ma57: float
+    buy_line: float | None
+    sell_line: float | None
+    ma57: float | None
 
 
 class FractalMarker(BaseModel):
@@ -130,6 +134,7 @@ class StrokePoint(BaseModel):
 class Stroke(BaseModel):
     direction: Literal["UP", "DOWN"]
     points: list[StrokePoint] = Field(min_length=2, max_length=2)
+    status: Literal["CONFIRMED", "TENTATIVE"] = "CONFIRMED"
 
 
 class SignalMarker(BaseModel):
