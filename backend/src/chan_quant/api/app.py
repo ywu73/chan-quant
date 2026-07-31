@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from chan_quant.data.csv_source import CsvDataError, load_csv_bars
+from chan_quant.data.market_snapshot import MarketSnapshotError, load_market_snapshot
 from chan_quant.data.sina_instrument_source import (
     fetch_sina_instrument,
     search_sina_instruments,
@@ -17,6 +18,7 @@ from chan_quant.data.sina_source import (
     fetch_sina_kline_bars,
 )
 from chan_quant.domain.dashboard import DashboardSnapshot
+from chan_quant.domain.data_quality import DataQualityRejection, DataQualityReport
 from chan_quant.domain.instrument import InstrumentIdentity, InstrumentSearchResponse
 from chan_quant.domain.quote import QuoteSnapshot
 from chan_quant.services.dashboard_builder import build_dashboard
@@ -26,12 +28,12 @@ app = FastAPI(
     title="Chan Quant API",
     version="0.1.0",
     description=(
-        "Auditable Independent v0.1 research API with synthetic, CSV, or "
-        "undocumented Sina K-line data."
+        "Auditable Independent v0.1 research API with synthetic, CSV, immutable "
+        "local snapshots, or undocumented Sina K-line data."
     ),
 )
 
-DataMode = Literal["synthetic", "csv", "sina"]
+DataMode = Literal["synthetic", "csv", "sina", "snapshot"]
 
 
 def _fallback_instrument(symbol: str, name: str) -> InstrumentIdentity:
@@ -51,9 +53,11 @@ def _fallback_instrument(symbol: str, name: str) -> InstrumentIdentity:
 def _configured_data_mode() -> DataMode:
     configured = os.getenv("CHAN_QUANT_DATA_SOURCE", "").strip().lower()
     if not configured:
+        if os.getenv("CHAN_QUANT_DATA_PACKAGE_PATH"):
+            return "snapshot"
         return "csv" if os.getenv("CHAN_QUANT_CSV_PATH") else "synthetic"
-    if configured not in {"synthetic", "csv", "sina"}:
-        raise ValueError("CHAN_QUANT_DATA_SOURCE must be synthetic, csv, or sina")
+    if configured not in {"synthetic", "csv", "sina", "snapshot"}:
+        raise ValueError("CHAN_QUANT_DATA_SOURCE must be synthetic, csv, sina, or snapshot")
     return cast(DataMode, configured)
 
 
@@ -144,7 +148,27 @@ def dashboard(
     del timeframe, lookback
     try:
         data_mode = _configured_data_mode()
-        if data_mode == "csv":
+        data_quality: DataQualityReport | None = None
+        if data_mode == "snapshot":
+            package_path = os.getenv("CHAN_QUANT_DATA_PACKAGE_PATH")
+            if not package_path:
+                raise ValueError("CHAN_QUANT_DATA_PACKAGE_PATH is required in snapshot mode")
+            loaded = load_market_snapshot(package_path, expected_symbol=symbol)
+            bars = loaded.bars
+            manifest = loaded.manifest
+            is_mock = False
+            data_source = "auditable-market-snapshot"
+            adjustment = manifest.adjustment
+            exchange = manifest.symbol.rsplit(".", 1)[1]
+            instrument = InstrumentIdentity(
+                symbol=manifest.symbol,
+                name=manifest.instrument_name,
+                exchange=cast(Literal["SZ", "SH"], exchange),
+                asset_type=manifest.asset_type,
+                price_precision=manifest.price_precision,
+            )
+            data_quality = loaded.quality
+        elif data_mode == "csv":
             csv_path = os.getenv("CHAN_QUANT_CSV_PATH")
             if not csv_path:
                 raise ValueError("CHAN_QUANT_CSV_PATH is required in csv mode")
@@ -184,8 +208,12 @@ def dashboard(
             is_mock=is_mock,
             data_source=data_source,
             adjustment=adjustment,
+            data_quality=data_quality,
         )
     except SinaUpstreamError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
+    except MarketSnapshotError as error:
+        rejection = DataQualityRejection(code=error.code, message=error.message)
+        raise HTTPException(status_code=422, detail=rejection.model_dump()) from error
     except (CsvDataError, SinaDataError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

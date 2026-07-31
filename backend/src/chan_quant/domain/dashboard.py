@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from chan_quant.domain.data_quality import DataQualityReport
 from chan_quant.domain.instrument import InstrumentIdentity
 
 TrendState = Literal["BULLISH", "BEARISH", "NEUTRAL"]
@@ -165,6 +166,7 @@ class DashboardSnapshot(BaseModel):
 
     is_mock: bool
     instrument: Instrument
+    data_quality: DataQualityReport | None = None
     status_chips: list[StatusChip]
     metrics: list[MetricCard]
     recommendation: Recommendation

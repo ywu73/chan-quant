@@ -15,6 +15,32 @@ export interface Instrument {
   adjustment: string;
 }
 
+export interface DataQualityIssue {
+  code: string;
+  severity: "INFO" | "WARNING" | "DANGER";
+  message: string;
+}
+
+export interface DataQualityReport {
+  status: "READY" | "WARNING";
+  integrity: "MATCH";
+  dataset_id: string;
+  schema_version: "market-snapshot-v0.1";
+  provider: string;
+  adjustment: "qfq" | "hfq" | "unadjusted";
+  adjustment_basis: "provider-declared" | "externally-audited";
+  timeframe: "1d";
+  timezone: "Asia/Shanghai";
+  fetched_at: string;
+  data_from: string;
+  data_to: string;
+  bar_count: number;
+  bars_sha256: string;
+  license_note: string;
+  audit_reference: string | null;
+  issues: DataQualityIssue[];
+}
+
 export interface StatusChip {
   label: string;
   tone: Tone;
@@ -103,6 +129,7 @@ export interface SignalMarker {
 export interface DashboardSnapshot {
   is_mock: boolean;
   instrument: Instrument;
+  data_quality: DataQualityReport | null;
   status_chips: StatusChip[];
   metrics: MetricCardData[];
   recommendation: Recommendation;

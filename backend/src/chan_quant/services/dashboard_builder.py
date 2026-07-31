@@ -20,6 +20,7 @@ from chan_quant.domain.dashboard import (
     StructuralTiming,
     WarningItem,
 )
+from chan_quant.domain.data_quality import DataQualityReport
 from chan_quant.domain.instrument import InstrumentIdentity
 from chan_quant.domain.market import MarketBar
 from chan_quant.domain.strategy import SignalSide, StrategyResult, TrendState
@@ -94,6 +95,7 @@ def build_dashboard(
     is_mock: bool,
     data_source: str,
     adjustment: str,
+    data_quality: DataQualityReport | None = None,
 ) -> DashboardSnapshot:
     result = run_strategy(bars)
     latest = result.states[-1]
@@ -174,6 +176,16 @@ def build_dashboard(
                 )
             )
 
+    if data_quality is not None:
+        warnings.extend(
+            WarningItem(
+                type=issue.code,
+                severity=issue.severity,
+                message=issue.message,
+            )
+            for issue in data_quality.issues
+        )
+
     precision = instrument.price_precision
 
     def price(value: float) -> str:
@@ -198,7 +210,12 @@ def build_dashboard(
                     )
                 )
                 if data_source == "sina-undocumented-kline"
-                else "当前使用外部 CSV 行情和 Independent v0.1 草案规则，仅供研究审计。"
+                else (
+                    "当前使用通过 SHA-256 与结构合同校验的本地历史行情快照；"
+                    "数据完整性不代表复权经济含义或策略有效性已经验证。"
+                    if data_source == "auditable-market-snapshot"
+                    else "当前使用外部 CSV 行情和 Independent v0.1 草案规则，仅供研究审计。"
+                )
             )
         ),
         filter_reasons=filters,
@@ -274,6 +291,7 @@ def build_dashboard(
 
     return DashboardSnapshot(
         is_mock=is_mock,
+        data_quality=data_quality,
         instrument=Instrument(
             **instrument.model_dump(),
             timeframe="1d",

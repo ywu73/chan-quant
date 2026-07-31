@@ -62,6 +62,29 @@ uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
 
 `CHAN_QUANT_ADJUSTMENT` 只记录数据提供方声明的复权口径，程序不会自行推断或复权。接入 CSV 后 `is_mock=false`，但策略规则状态仍为 `DRAFT`，不能据此宣称已经验证有效。
 
+### 使用可审计历史行情快照
+
+当研究结果需要绑定到一份不可变的本地输入时，使用仓库外的快照目录：
+
+```text
+/absolute/path/to/market-snapshot/
+├── manifest.json
+└── bars.csv
+```
+
+`manifest.json` 显式声明标的、数据提供方、复权口径、获取时间、日期范围、K 线根数和 `bars.csv` 的 SHA-256。启动时后端会先验证哈希、标的、周期、日期范围、根数和 CSV 结构，任一不一致都返回 `422`，不会静默降级到新浪、普通 CSV 或合成数据：
+
+```bash
+cd backend
+CHAN_QUANT_DATA_SOURCE=snapshot \
+CHAN_QUANT_DATA_PACKAGE_PATH=/absolute/path/to/market-snapshot \
+uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
+```
+
+通过完整性检查后，Dashboard 会显示数据集 ID、提供方、日期范围、获取时间、复权依据、哈希状态和质量警告。`provider-declared` 只表示复权口径来自提供方声明，仍会标记为 `WARNING`；文件完整不代表复权经济含义或策略有效性已经验证。
+
+数据包格式、manifest 示例、错误代码和生成 SHA-256 的方法见 `docs/market-snapshot.md`。行情数据、授权材料和凭证不得提交到 Git。
+
 ### 使用新浪财经候选 K 线源
 
 新浪端点目前不需要 Token，但没有公开字段合同、复权说明或 SLA。本项目只从 Python 后端低频访问日 K 和单标的实时快照；实时快照使用独立接口和页面区域，**不进入策略链路**：
@@ -127,6 +150,7 @@ npm run build
 - 合成数据上的信号数量和事件统计只验证计算链路，不代表真实市场表现。
 - 新浪实时快照是未文档化 HTTP 端点的低频展示，不是 WebSocket、交易行情 SLA 或实盘性能证据。
 - 新浪标的名称建议同样是未文档化候选接口；类别 `203` 只是在 2026-07-31 ETF 样本中的现场观察，不是正式证券主数据合同或全市场扫描能力。
+- 可审计快照只验证本地文件、manifest 与数据结构的一致性；提供方授权和复权经济含义仍需独立证据。
 - 匿名可访问不等于获得商业使用、再分发或稳定服务授权。
 - 当前没有交易成本、滑点、涨跌停、停牌、分红处理或组合资金曲线。
 - 行情、凭证、API Token 与本地缓存不提交到 Git。

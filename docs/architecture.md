@@ -1,7 +1,7 @@
 # 系统架构
 
 ```text
-确定性合成数据 / 本地 CSV / 新浪未文档化 K 线端点
+确定性合成数据 / 本地 CSV / 可审计历史快照 / 新浪未文档化 K 线端点
   -> MarketBar 规范化与时序校验
   -> EMA/SMA/Donchian/日周趋势
   -> 严格三 K 分型与简化笔
@@ -20,6 +20,8 @@
 
 - `backend/src/chan_quant/domain`：稳定领域数据模型与时间约束。
 - `backend/src/chan_quant/data`：CSV、新浪 K 线、实时快照与标的元数据适配、代码映射、输入和上游错误归一化。
+- `backend/src/chan_quant/data/market_snapshot.py`：仓库外 `manifest.json + bars.csv` 的联合加载、SHA-256、标的、周期、日期范围和根数校验；失败时禁止降级。
+- `backend/src/chan_quant/domain/data_quality.py`：稳定的数据清单、数据集身份、完整性状态、复权依据和 reason code 合同。
 - `backend/src/chan_quant/domain/instrument.py`：稳定标的身份，包括规范代码、名称、交易所、可确认的资产类别与价格精度。
 - `backend/src/chan_quant/audit`：候选行情与参考日线、交易日历及历史快照的可复现质量审计。
 - `backend/src/chan_quant/strategy`：指标、结构和 Independent v0.1 信号引擎。
@@ -32,6 +34,8 @@
 - `frontend/src/components`：纯展示组件和图表。
 
 后端是策略事实的唯一所有者。前端只消费快照，不能重新计算均线、多空、共振、信号或事件成功率。
+
+可审计历史快照把数据身份与计算视图分开：`dataset_id` 由规范化 manifest 生成，`as_of` 只截断本次策略计算所见的 K 线，不改变数据集身份或完整数据范围。文件哈希、manifest 或任何一根 K 线变化都会形成不同身份或直接因哈希不匹配而失败。`provider-declared` 只记录提供方声明，不会被提升为独立复权审计结论。
 
 新浪端点不允许前端直连。后端负责请求和 GB18030 兼容解码：K 线 JSON 归一化为 `MarketBar`，实时赋值语句归一化为 `QuoteSnapshot`。两条链路只在页面展示层并列，Quote 模块不接受 `MarketBar`、不调用策略引擎，也不写回 Dashboard。外部响应中的均线字段和盘中价格都不参与策略计算。
 

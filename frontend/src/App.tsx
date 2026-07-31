@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchDashboard } from "./api/dashboard";
 import { fetchQuote } from "./api/quote";
 import { ChanChart } from "./components/ChanChart";
+import { DataQualityPanel } from "./components/DataQualityPanel";
 import { InstrumentSearch, normalizeDirectSymbol } from "./components/InstrumentSearch";
 import { MetricCard } from "./components/MetricCard";
 import { PerformanceCard } from "./components/PerformanceCard";
@@ -124,9 +125,13 @@ function Dashboard({
               : instrument.adjustment === "unadjusted-observed"
                 ? "新浪财经匿名 K 线端点 · 有限股票样本现场观测为不复权 · 无固定口径合同或 SLA · 不代表交易建议"
                 : "新浪财经匿名 K 线端点 · 标的元数据与复权口径未经确认 · 不代表交易建议"
-            : "外部 CSV 行情 · Independent v0.1 仍是待验证草案 · 不代表交易建议"}
+            : instrument.data_source === "auditable-market-snapshot"
+              ? "本地历史行情快照 · SHA-256 与结构合同已检查 · Independent v0.1 仍是待验证草案 · 不代表交易建议"
+              : "外部 CSV 行情 · Independent v0.1 仍是待验证草案 · 不代表交易建议"}
         </div>
       )}
+
+      {snapshot.data_quality && <DataQualityPanel report={snapshot.data_quality} />}
 
       <QuotePanel
         symbol={instrument.symbol}

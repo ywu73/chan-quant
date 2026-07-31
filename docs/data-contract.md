@@ -29,10 +29,12 @@ GET /api/v1/instruments/{symbol}/dashboard?timeframe=1d&as_of=2026-07-30&lookbac
 优先读取显式环境变量：
 
 ```text
-CHAN_QUANT_DATA_SOURCE=synthetic|csv|sina
+CHAN_QUANT_DATA_SOURCE=synthetic|csv|sina|snapshot
 ```
 
 为兼容旧启动方式，未设置该变量但存在 `CHAN_QUANT_CSV_PATH` 时仍进入 CSV 模式；两者都没有时使用确定性合成数据。
+
+未设置该变量但存在 `CHAN_QUANT_DATA_PACKAGE_PATH` 时优先进入 snapshot 模式。snapshot 模式不会在数据包失败时降级到其他来源。
 
 ## CSV 输入契约
 
@@ -56,6 +58,58 @@ CSV 列：
 读取后按日期升序规范化；重复日期、非法 OHLC、缺列、非 UTF-8 文件和少于 92 根历史都会返回 HTTP `422`。`as_of` 会在计算前截断数据，因此截断后也必须保留至少 92 根。
 
 CSV 模式返回 `is_mock=false` 和 `data_source=csv`，只代表行情不再是内置合成数据；`strategy.rule_status` 仍为 `DRAFT`。
+
+## 可审计历史快照契约
+
+snapshot 模式要求 `CHAN_QUANT_DATA_PACKAGE_PATH` 指向仓库外目录，且目录中固定存在 `manifest.json` 和 `bars.csv`。后端先验证 manifest 合同与 `bars.csv` SHA-256，再复用 CSV 的 OHLCV 和时间序列校验；标的、周期、日期范围、根数或哈希不一致均返回 `422`。
+
+有效快照在 Dashboard 顶层增加：
+
+```json
+{
+  "data_quality": {
+    "status": "WARNING",
+    "integrity": "MATCH",
+    "dataset_id": "sha256:<64 hex chars>",
+    "schema_version": "market-snapshot-v0.1",
+    "provider": "authorized-local-export",
+    "adjustment": "qfq",
+    "adjustment_basis": "provider-declared",
+    "timeframe": "1d",
+    "timezone": "Asia/Shanghai",
+    "fetched_at": "2026-08-01T00:30:00+08:00",
+    "data_from": "2018-01-02",
+    "data_to": "2026-07-31",
+    "bar_count": 2000,
+    "bars_sha256": "<64 hex chars>",
+    "license_note": "User-authorized local research export",
+    "audit_reference": null,
+    "issues": [
+      {
+        "code": "ADJUSTMENT_PROVIDER_DECLARED",
+        "severity": "WARNING",
+        "message": "复权口径来自数据提供方声明……"
+      }
+    ]
+  }
+}
+```
+
+`dataset_id` 由规范化 manifest 生成。同一数据包在不同请求和不同 `as_of` 计算视图中保持相同；manifest 发生语义变化则身份变化。`integrity=MATCH` 只表示文件哈希与结构合同一致，不表示外部授权、复权经济含义、策略收益或实盘能力已验证。完整 manifest 见 `market-snapshot.md`。
+
+非 snapshot 数据模式返回 `data_quality=null`，不会为缺少 manifest 和不可变文件身份的输入伪造数据集审计结论。
+
+快照校验失败返回 HTTP `422` 和结构化拒绝原因，前端不得生成策略页面：
+
+```json
+{
+  "detail": {
+    "status": "REJECTED",
+    "code": "HASH_MISMATCH",
+    "message": "bars.csv SHA-256 ... does not match manifest ..."
+  }
+}
+```
 
 ## 新浪 K 线输入契约
 
