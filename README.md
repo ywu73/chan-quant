@@ -38,6 +38,34 @@ uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
 
 `CHAN_QUANT_ADJUSTMENT` 只记录数据提供方声明的复权口径，程序不会自行推断或复权。接入 CSV 后 `is_mock=false`，但策略规则状态仍为 `DRAFT`，不能据此宣称已经验证有效。
 
+### 使用新浪财经候选 K 线源
+
+新浪端点目前不需要 Token，但没有公开字段合同、复权说明或 SLA。本项目只从 Python 后端低频访问日 K，实时行情端点不进入策略链路：
+
+```bash
+cd backend
+CHAN_QUANT_DATA_SOURCE=sina \
+CHAN_QUANT_SINA_DATALEN=2000 \
+CHAN_QUANT_INSTRUMENT_NAME='平安银行' \
+uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
+```
+
+前端启动后打开：
+
+```text
+http://127.0.0.1:5173/?symbol=000001.SZ
+```
+
+新浪模式只支持 `NNNNNN.SZ` 和 `NNNNNN.SH`。响应会明确标记：
+
+```text
+data_source = sina-undocumented-kline
+adjustment = unknown
+strategy.rule_status = DRAFT
+```
+
+现场观测、访问限制和使用边界见 `docs/sina-data-source.md`。
+
 ## 验证
 
 ```bash
@@ -58,5 +86,6 @@ npm run build
 - 策略事件分别记录结构时间、确认时间与最早可执行时间。
 - 页面展示与策略计算分离，前端不得重新实现交易规则。
 - 合成数据上的信号数量和事件统计只验证计算链路，不代表真实市场表现。
+- 匿名可访问不等于获得商业使用、再分发或稳定服务授权。
 - 当前没有交易成本、滑点、涨跌停、停牌、分红处理或组合资金曲线。
 - 行情、凭证、API Token 与本地缓存不提交到 Git。

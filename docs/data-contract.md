@@ -24,6 +24,16 @@ GET /api/v1/instruments/{symbol}/dashboard?timeframe=1d&as_of=2026-07-30&lookbac
 
 合成数据只用于验证计算、API 和页面链路。其信号和事件统计不是历史回测或实盘表现。
 
+## 数据源选择
+
+优先读取显式环境变量：
+
+```text
+CHAN_QUANT_DATA_SOURCE=synthetic|csv|sina
+```
+
+为兼容旧启动方式，未设置该变量但存在 `CHAN_QUANT_CSV_PATH` 时仍进入 CSV 模式；两者都没有时使用确定性合成数据。
+
 ## CSV 输入契约
 
 通过环境变量 `CHAN_QUANT_CSV_PATH` 指定本地 CSV 后，接口对 URL 中的标的代码计算同一套 Independent v0.1 草案规则：
@@ -46,6 +56,35 @@ CSV 列：
 读取后按日期升序规范化；重复日期、非法 OHLC、缺列、非 UTF-8 文件和少于 92 根历史都会返回 HTTP `422`。`as_of` 会在计算前截断数据，因此截断后也必须保留至少 92 根。
 
 CSV 模式返回 `is_mock=false` 和 `data_source=csv`，只代表行情不再是内置合成数据；`strategy.rule_status` 仍为 `DRAFT`。
+
+## 新浪 K 线输入契约
+
+新浪模式使用后端适配器访问未文档化匿名 K 线端点，前端不得跨域直连：
+
+| 配置 | 默认值 | 约束 |
+|---|---|---|
+| `CHAN_QUANT_DATA_SOURCE` | 无 | 新浪模式必须为 `sina` |
+| `CHAN_QUANT_SINA_DATALEN` | `2000` | 整数，范围 `92..10000` |
+| `CHAN_QUANT_INSTRUMENT_NAME` | URL 标的代码 | 仅用于展示名称 |
+
+仅支持规范代码 `NNNNNN.SZ` 和 `NNNNNN.SH`。适配器固定请求日线 `scale=240`、关闭新浪均线 `ma=no`，以确保所有 EMA/SMA 仍由本项目后端计算。
+
+新浪响应没有成交额和复权字段，因此强制返回：
+
+```json
+{
+  "is_mock": false,
+  "instrument": {
+    "data_source": "sina-undocumented-kline",
+    "adjustment": "unknown"
+  },
+  "strategy": {
+    "rule_status": "DRAFT"
+  }
+}
+```
+
+HTTP 非 200、连接失败、超时、编码或 JSON 畸形映射为 HTTP `502`；无效标的、配置或历史不足映射为 HTTP `422`。详细现场证据和授权边界见 `sina-data-source.md`。
 
 ## 核心约束
 
