@@ -49,7 +49,7 @@ function Dashboard({
       {!snapshot.is_mock && snapshot.strategy.rule_status === "DRAFT" && (
         <div className="mock-banner">
           {instrument.data_source === "sina-undocumented-kline"
-            ? "新浪财经匿名 K 线端点 · 复权口径未知 · 无公开 SLA · 不代表交易建议"
+            ? "新浪财经匿名 K 线端点 · 现场观测为不复权 · 无固定口径合同或 SLA · 不代表交易建议"
             : "外部 CSV 行情 · Independent v0.1 仍是待验证草案 · 不代表交易建议"}
         </div>
       )}

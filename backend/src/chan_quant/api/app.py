@@ -113,7 +113,7 @@ def dashboard(
             bars = fetch_sina_kline_bars(symbol, datalen=_sina_datalen())
             is_mock = False
             data_source = "sina-undocumented-kline"
-            adjustment = "unknown"
+            adjustment = "unadjusted-observed"
             name = os.getenv("CHAN_QUANT_INSTRUMENT_NAME", symbol.upper())
         else:
             bars = build_demo_bars()

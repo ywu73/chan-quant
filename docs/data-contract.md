@@ -69,20 +69,22 @@ CSV 模式返回 `is_mock=false` 和 `data_source=csv`，只代表行情不再�
 
 仅支持规范代码 `NNNNNN.SZ` 和 `NNNNNN.SH`。适配器固定请求日线 `scale=240`、关闭新浪均线 `ma=no`，以确保所有 EMA/SMA 仍由本项目后端计算。
 
-新浪响应没有成交额和复权字段，因此强制返回：
+新浪响应没有成交额或复权声明。2026-07-31 的三标的除权窗口核验均与原始未复权 OHLC 一致，因此当前版本返回一个**观测标签**：
 
 ```json
 {
   "is_mock": false,
   "instrument": {
     "data_source": "sina-undocumented-kline",
-    "adjustment": "unknown"
+    "adjustment": "unadjusted-observed"
   },
   "strategy": {
     "rule_status": "DRAFT"
   }
 }
 ```
+
+该值不是 `unadjusted`、`qfq` 或 `hfq` 的上游合同。它只表示当前审计证据支持“现场表现为不复权”；新浪没有公开字段合同、口径版本或 SLA，未来响应仍可能变化。前端必须同时展示这一限制，策略结论不得省略该警告。
 
 HTTP 非 200、连接失败、超时、编码或 JSON 畸形映射为 HTTP `502`；无效标的、配置或历史不足映射为 HTTP `422`。详细现场证据和授权边界见 `sina-data-source.md`。
 

@@ -119,7 +119,7 @@ def test_dashboard_endpoint_rejects_insufficient_csv_history(
     assert response.json()["detail"] == "expected at least 92 bars, got 91"
 
 
-def test_dashboard_endpoint_uses_sina_source_with_unknown_adjustment(
+def test_dashboard_endpoint_uses_sina_source_with_observed_adjustment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "sina")
@@ -137,14 +137,14 @@ def test_dashboard_endpoint_uses_sina_source_with_unknown_adjustment(
     assert payload["instrument"]["symbol"] == "000001.SZ"
     assert payload["instrument"]["name"] == "平安银行"
     assert payload["instrument"]["data_source"] == "sina-undocumented-kline"
-    assert payload["instrument"]["adjustment"] == "unknown"
+    assert payload["instrument"]["adjustment"] == "unadjusted-observed"
     assert payload["recommendation"]["warnings"] == [
         {
-            "type": "DATA_SOURCE_ADJUSTMENT_UNKNOWN",
+            "type": "DATA_SOURCE_ADJUSTMENT_UNCONTRACTED",
             "severity": "WARNING",
             "message": (
-                "新浪 K 线端点未声明复权口径；除权除息附近的结构、"
-                "信号和事件收益只能作为待核对结果。"
+                "三标的除权窗口观测与不复权原始行情一致，但新浪没有提供"
+                "固定口径合同；除权除息仍可能制造机械结构和事件信号。"
             ),
         }
     ]

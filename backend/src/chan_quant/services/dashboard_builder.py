@@ -142,11 +142,11 @@ def build_dashboard(
     if data_source == "sina-undocumented-kline":
         warnings.append(
             WarningItem(
-                type="DATA_SOURCE_ADJUSTMENT_UNKNOWN",
+                type="DATA_SOURCE_ADJUSTMENT_UNCONTRACTED",
                 severity="WARNING",
                 message=(
-                    "新浪 K 线端点未声明复权口径；除权除息附近的结构、"
-                    "信号和事件收益只能作为待核对结果。"
+                    "三标的除权窗口观测与不复权原始行情一致，但新浪没有提供"
+                    "固定口径合同；除权除息仍可能制造机械结构和事件信号。"
                 ),
             )
         )
@@ -158,8 +158,8 @@ def build_dashboard(
             "当前使用合成行情验证 Independent v0.1 规则，不代表真实市场结论。"
             if is_mock
             else (
-                "当前使用新浪财经未文档化匿名 K 线端点；复权口径未知，"
-                "仅供研究审计。"
+                "当前使用新浪财经未文档化匿名 K 线端点；现场观测为不复权，"
+                "但没有固定口径合同，仅供研究审计。"
                 if data_source == "sina-undocumented-kline"
                 else "当前使用外部 CSV 行情和 Independent v0.1 草案规则，仅供研究审计。"
             )
