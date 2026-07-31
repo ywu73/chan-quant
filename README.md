@@ -4,6 +4,30 @@ Chan Quant 是一个结构与趋势量化研究台。它把严格三 K 分型、
 
 当前策略版本为 **Independent v0.1 草案**。它是本项目独立选择的一套工程规则，不是参考截图作者的原始公式，也不声称是“标准”或“正统”缠论。系统仍是研究与审计工具，不提供实盘交易能力。
 
+## 一键启动
+
+依赖已经安装后，在仓库根目录执行：
+
+```bash
+./start.sh
+```
+
+脚本会默认使用新浪日 K，同时启动后端和前端，并打印页面地址：
+
+```text
+http://127.0.0.1:5173/?symbol=000001.SZ
+```
+
+终端按 `Ctrl+C` 会同时关闭两个进程。默认标的可通过环境变量修改：
+
+```bash
+CHAN_QUANT_SYMBOL=600519.SH \
+CHAN_QUANT_INSTRUMENT_NAME='贵州茅台' \
+./start.sh
+```
+
+脚本不会自动安装依赖；首次运行仍需按照下一节分别执行 `uv sync --all-groups` 和 `npm ci`。
+
 ## 本地运行
 
 启动 API。未配置行情文件时，后端使用确定性合成数据，并在响应和页面中明确标记：
@@ -60,11 +84,11 @@ http://127.0.0.1:5173/?symbol=000001.SZ
 
 ```text
 data_source = sina-undocumented-kline
-adjustment = unknown
+adjustment = unadjusted-observed
 strategy.rule_status = DRAFT
 ```
 
-现场观测、访问限制和使用边界见 `docs/sina-data-source.md`。
+`unadjusted-observed` 表示三个标的的除权窗口在 **2026-07-31** 的现场核验中与原始未复权 OHLC 一致，**不是**新浪提供的固定数据合同。除权除息仍会形成机械跳空，影响均线、通道、分型与事件收益。现场证据、审计命令、访问限制和使用边界见 `docs/sina-data-source.md` 与 `docs/sina-adjustment-research.md`。
 
 ## 验证
 
