@@ -6,7 +6,8 @@ import { MetricCard } from "./components/MetricCard";
 import { PerformanceCard } from "./components/PerformanceCard";
 import type { DashboardSnapshot } from "./types/dashboard";
 
-const SYMBOL = "DEMO.SZ";
+const requestedSymbol = new URLSearchParams(window.location.search).get("symbol");
+const SYMBOL = requestedSymbol?.trim().toUpperCase() || "DEMO.SZ";
 
 function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
   const { instrument, recommendation, signal_performance: performance } = snapshot;
@@ -35,7 +36,9 @@ function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
       )}
       {!snapshot.is_mock && snapshot.strategy.rule_status === "DRAFT" && (
         <div className="mock-banner">
-          外部 CSV 行情 · Independent v0.1 仍是待验证草案 · 不代表交易建议
+          {instrument.data_source === "sina-undocumented-kline"
+            ? "新浪财经匿名 K 线端点 · 复权口径未知 · 无公开 SLA · 不代表交易建议"
+            : "外部 CSV 行情 · Independent v0.1 仍是待验证草案 · 不代表交易建议"}
         </div>
       )}
 
@@ -64,7 +67,7 @@ function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
         ))}
         {recommendation.warnings.map((warning) => (
           <p className="recommendation-panel__warning" key={warning.type}>
-            背驰预警：🔴 {warning.message}
+            风险提示：🟠 {warning.message}
           </p>
         ))}
         <p className="recommendation-panel__mock">{recommendation.summary}</p>
