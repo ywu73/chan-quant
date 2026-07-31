@@ -6,12 +6,14 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from chan_quant.data.csv_source import CsvDataError, load_csv_bars
+from chan_quant.data.sina_quote_source import SinaQuoteUnavailableError, fetch_sina_quote
 from chan_quant.data.sina_source import (
     SinaDataError,
     SinaUpstreamError,
     fetch_sina_kline_bars,
 )
 from chan_quant.domain.dashboard import DashboardSnapshot
+from chan_quant.domain.quote import QuoteSnapshot
 from chan_quant.services.dashboard_builder import build_dashboard
 from chan_quant.services.demo_market import build_demo_bars
 
@@ -68,6 +70,21 @@ def health() -> dict[str, str]:
         "data_mode": data_mode,
         "strategy": "independent-v0.1.0-draft",
     }
+
+
+@app.get(
+    "/api/v1/instruments/{symbol}/quote",
+    response_model=QuoteSnapshot,
+)
+def quote(symbol: str) -> QuoteSnapshot:
+    try:
+        return fetch_sina_quote(symbol)
+    except SinaQuoteUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except SinaUpstreamError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except SinaDataError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.get(

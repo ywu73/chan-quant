@@ -97,6 +97,58 @@ HTTP 非 200、连接失败、超时、编码或 JSON 畸形映射为 HTTP `502`
 - 每个信号满足 `structure_at <= confirmed_at <= executable_at`；没有下一根 K 线时 `executable_at=null`。
 - 事件收益使用确认后的下一根可用 K 线开盘价，目标索引为执行索引加 `N - 1`。
 
+## 独立实时 Quote 接口
+
+```http
+GET /api/v1/instruments/{symbol}/quote
+```
+
+该接口始终访问后端新浪实时快照适配器，不受 `CHAN_QUANT_DATA_SOURCE` 影响，也不会调用 Dashboard 构建器。只支持 `NNNNNN.SZ` 和 `NNNNNN.SH`：
+
+```json
+{
+  "symbol": "000001.SZ",
+  "name": "测试名称",
+  "last_price": 11.62,
+  "previous_close": 11.48,
+  "change": 0.14,
+  "change_percent": 0.012195,
+  "open": 11.48,
+  "high": 11.67,
+  "low": 11.42,
+  "volume": 63210000,
+  "quote_at": "2026-07-31T14:35:06+08:00",
+  "received_at": "2026-07-31T14:35:07+08:00",
+  "source": "sina-undocumented-quote",
+  "status": "LIVE",
+  "is_stale": false
+}
+```
+
+示例数值是合同样例，不是真实行情快照。`change = last_price - previous_close`，`change_percent = last_price / previous_close - 1`；计算由后端完成，前端只格式化。
+
+时间与状态合同：
+
+| 字段/状态 | 含义 |
+|---|---|
+| `quote_at` | 新浪响应内的行情日期与时间，固定解释为上海时区 |
+| `received_at` | 后端收到本次响应的时间，不得冒充行情时间 |
+| `LIVE` | 同一日期、15:00 前且行情时间距离接收时间不超过 30 秒 |
+| `DELAYED` | 尚未满足收盘条件但与接收时间相差超过 30 秒；`is_stale=true` |
+| `CLOSED` | 行情日期早于接收日期，或行情时间达到 15:00；`is_stale=false` |
+
+`CLOSED` 只描述该快照已处于收盘口径，不证明交易所日历、停牌状态或端点完整性。响应行情时间比接收时间超前超过 5 秒会视为畸形上游响应。
+
+错误映射：
+
+| HTTP | 分类 | 例子 |
+|---|---|---|
+| `422` | 输入合同错误 | 非规范 symbol |
+| `502` | 上游请求或响应故障 | 403、超时、解码失败、变量名或字段畸形 |
+| `503` | 当前快照不可用 | 空字符串、全零快照，或开高低与成交量均为零的非交易快照 |
+
+前端失败时不得无标记地延续旧价；Quote 故障不得阻断 Dashboard 或改变任何 `structure_at/confirmed_at/executable_at`。
+
 ## 版本字段
 
 快照必须包含 `strategy.version`、`strategy.parameter_version` 与 `strategy.rule_status`。未来任何规则或参数变化都必须产生新版本，避免相同日期的历史结果被静默改写。

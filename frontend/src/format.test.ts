@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDate, formatPercent } from "./format";
+import {
+  formatDate,
+  formatPrice,
+  formatQuoteTime,
+  formatVolume,
+} from "./format";
+import { formatPercent } from "./format";
 
 describe("display formatting", () => {
   it("formats decimal ratios as percentages", () => {
@@ -10,5 +16,14 @@ describe("display formatting", () => {
 
   it("formats ISO dates for compact signal lists", () => {
     expect(formatDate("2026-07-21")).toBe("07-21");
+  });
+
+  it("formats quote facts without changing their meaning", () => {
+    expect(formatPrice(11.6)).toBe("¥11.60");
+    expect(formatVolume(63_210_000)).toBe("6321.00 万");
+    expect(formatVolume(632_100_000)).toBe("6.32 亿");
+    expect(formatQuoteTime("2026-07-31T14:35:06+08:00")).toBe(
+      "2026-07-31 14:35:06",
+    );
   });
 });

@@ -1,15 +1,27 @@
 import { useEffect, useState } from "react";
 
 import { fetchDashboard } from "./api/dashboard";
+import { fetchQuote } from "./api/quote";
 import { ChanChart } from "./components/ChanChart";
 import { MetricCard } from "./components/MetricCard";
 import { PerformanceCard } from "./components/PerformanceCard";
+import { QuotePanel } from "./components/QuotePanel";
+import { startQuotePolling } from "./quotePolling";
 import type { DashboardSnapshot } from "./types/dashboard";
+import type { QuoteSnapshot } from "./types/quote";
 
 const requestedSymbol = new URLSearchParams(window.location.search).get("symbol");
 const SYMBOL = requestedSymbol?.trim().toUpperCase() || "DEMO.SZ";
 
-function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
+function Dashboard({
+  snapshot,
+  quote,
+  quoteError,
+}: {
+  snapshot: DashboardSnapshot;
+  quote: QuoteSnapshot | null;
+  quoteError: string | null;
+}) {
   const { instrument, recommendation, signal_performance: performance } = snapshot;
 
   return (
@@ -41,6 +53,13 @@ function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
             : "外部 CSV 行情 · Independent v0.1 仍是待验证草案 · 不代表交易建议"}
         </div>
       )}
+
+      <QuotePanel
+        symbol={instrument.symbol}
+        strategyAsOf={instrument.as_of}
+        quote={quote}
+        error={quoteError}
+      />
 
       <section className="status-chips" aria-label="策略状态">
         {snapshot.status_chips.map((chip) => (
@@ -95,6 +114,8 @@ function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }) {
 export default function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [quote, setQuote] = useState<QuoteSnapshot | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboard(SYMBOL).then(setSnapshot).catch((reason: unknown) => {
@@ -102,11 +123,26 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => startQuotePolling({
+    symbol: SYMBOL,
+    fetchQuote,
+    onQuote: (nextQuote) => {
+      setQuote(nextQuote);
+      setQuoteError(null);
+    },
+    onError: (reason) => {
+      setQuote(null);
+      setQuoteError(reason instanceof Error ? reason.message : "实时行情不可用");
+    },
+    visibilitySource: document,
+    intervalMs: 8_000,
+  }), []);
+
   if (error) {
     return <div className="page-state page-state--error">{error}</div>;
   }
   if (!snapshot) {
     return <div className="page-state">正在读取 mock 策略快照…</div>;
   }
-  return <Dashboard snapshot={snapshot} />;
+  return <Dashboard snapshot={snapshot} quote={quote} quoteError={quoteError} />;
 }

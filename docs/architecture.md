@@ -7,24 +7,29 @@
   -> 严格三 K 分型与简化笔
   -> setup 生命周期与候选信号
   -> next-open 事件研究
-  -> FastAPI 快照
-  -> React + ECharts
+  -> Dashboard API ───────────────────────┐
+                                          ├─> React + ECharts
+新浪未文档化实时快照 -> QuoteSnapshot     │
+  -> 独立 Quote API ──────────────────────┘
 ```
 
 ## 模块边界
 
 - `backend/src/chan_quant/domain`：稳定领域数据模型与时间约束。
-- `backend/src/chan_quant/data`：CSV 与新浪 K 线适配、代码映射、输入和上游错误归一化。
+- `backend/src/chan_quant/data`：CSV、新浪 K 线与新浪实时快照适配、代码映射、输入和上游错误归一化。
 - `backend/src/chan_quant/strategy`：指标、结构和 Independent v0.1 信号引擎。
 - `backend/src/chan_quant/backtest`：无成本的信号事件研究，不是组合回测。
 - `backend/src/chan_quant/services`：合成行情生成与 Dashboard 快照组装。
 - `backend/src/chan_quant/api`：HTTP 适配层，不包含策略规则。
-- `frontend/src/api`：快照获取与错误处理。
+- `frontend/src/api`：Dashboard 与 Quote 快照获取及错误处理。
+- `frontend/src/quotePolling.ts`：8 秒低频轮询、页面可见性暂停和生命周期清理。
 - `frontend/src/components`：纯展示组件和图表。
 
 后端是策略事实的唯一所有者。前端只消费快照，不能重新计算均线、多空、共振、信号或事件成功率。
 
-新浪端点不允许前端直连。后端负责请求、GB18030 兼容解码、JSON 校验和 `MarketBar` 归一化；外部响应中的均线字段不参与计算。当前不加入实时行情端点，以免盘中值改变日线收盘确认语义。
+新浪端点不允许前端直连。后端负责请求和 GB18030 兼容解码：K 线 JSON 归一化为 `MarketBar`，实时赋值语句归一化为 `QuoteSnapshot`。两条链路只在页面展示层并列，Quote 模块不接受 `MarketBar`、不调用策略引擎，也不写回 Dashboard。外部响应中的均线字段和盘中价格都不参与策略计算。
+
+实时状态也由后端给出。前端只把 `LIVE/DELAYED/CLOSED` 格式化为“实时/延迟/已收盘”，请求失败则明确显示“不可用”；失败时旧价会被清除，日线 Dashboard 继续工作。
 
 ## 时间与前缀稳定性
 

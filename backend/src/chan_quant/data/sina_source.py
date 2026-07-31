@@ -27,7 +27,7 @@ def to_sina_symbol(symbol: str) -> str:
     canonical = symbol.strip().upper()
     match = _CANONICAL_SYMBOL.fullmatch(canonical)
     if match is None:
-        raise SinaDataError("Sina K-line source supports only NNNNNN.SZ or NNNNNN.SH")
+        raise SinaDataError("Sina sources support only NNNNNN.SZ or NNNNNN.SH")
     return f"{match.group('exchange').lower()}{match.group('code')}"
 
 
