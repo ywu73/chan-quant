@@ -18,6 +18,7 @@ from chan_quant.domain.dashboard import (
     Stroke,
     StrokePoint,
     StructuralTiming,
+    WarningItem,
 )
 from chan_quant.domain.market import MarketBar
 from chan_quant.domain.strategy import SignalSide, StrategyResult, TrendState
@@ -137,13 +138,31 @@ def build_dashboard(
     if dominant_count < 2:
         filters.append(ReasonItem(code="LOW_RESONANCE", message="当前多周期共振不足 2/4"))
 
+    warnings: list[WarningItem] = []
+    if data_source == "sina-undocumented-kline":
+        warnings.append(
+            WarningItem(
+                type="DATA_SOURCE_ADJUSTMENT_UNKNOWN",
+                severity="WARNING",
+                message=(
+                    "新浪 K 线端点未声明复权口径；除权除息附近的结构、"
+                    "信号和事件收益只能作为待核对结果。"
+                ),
+            )
+        )
+
     recommendation = Recommendation(
         action=action,
         title=f"【{action_label}】当前处于{zone_label}，{direction_label}共振 {dominant_count}/4",
         summary=(
             "当前使用合成行情验证 Independent v0.1 规则，不代表真实市场结论。"
             if is_mock
-            else "当前使用外部 CSV 行情和 Independent v0.1 草案规则，仅供研究审计。"
+            else (
+                "当前使用新浪财经未文档化匿名 K 线端点；复权口径未知，"
+                "仅供研究审计。"
+                if data_source == "sina-undocumented-kline"
+                else "当前使用外部 CSV 行情和 Independent v0.1 草案规则，仅供研究审计。"
+            )
         ),
         filter_reasons=filters,
         evidence_lines=[
@@ -152,7 +171,7 @@ def build_dashboard(
             f"通道：短周期{_trend_text(latest.short_channel.state)} · 长周期{_trend_text(latest.long_channel.state)}",
             f"均线：日线{_trend_text(latest.daily_trend)} · 周线{weekly_label}",
         ],
-        warnings=[],
+        warnings=warnings,
     )
 
     chart_start = max(0, len(bars) - 180)

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from chan_quant.api.app import app
+from chan_quant.data.sina_source import SinaUpstreamError
 from chan_quant.domain.dashboard import StructuralTiming
 from chan_quant.services.dashboard_builder import (
     line_spread_pct,
@@ -66,7 +67,11 @@ def test_structural_timing_rejects_future_leak_order() -> None:
         )
 
 
-def test_dashboard_endpoint_is_explicitly_synthetic_draft() -> None:
+def test_dashboard_endpoint_is_explicitly_synthetic_draft(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "synthetic")
+    monkeypatch.delenv("CHAN_QUANT_CSV_PATH", raising=False)
     client = TestClient(app)
     response = client.get("/api/v1/instruments/demo.sz/dashboard")
 
@@ -83,6 +88,7 @@ def test_dashboard_endpoint_uses_explicit_csv_metadata(
 ) -> None:
     source = tmp_path / "bars.csv"
     _write_demo_csv(source, count=120)
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "csv")
     monkeypatch.setenv("CHAN_QUANT_CSV_PATH", str(source))
     monkeypatch.setenv("CHAN_QUANT_ADJUSTMENT", "qfq")
     monkeypatch.setenv("CHAN_QUANT_INSTRUMENT_NAME", "CSV 测试标的")
@@ -104,9 +110,58 @@ def test_dashboard_endpoint_rejects_insufficient_csv_history(
 ) -> None:
     source = tmp_path / "short.csv"
     _write_demo_csv(source, count=91)
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "csv")
     monkeypatch.setenv("CHAN_QUANT_CSV_PATH", str(source))
 
     response = TestClient(app).get("/api/v1/instruments/000001.sz/dashboard")
 
     assert response.status_code == 422
     assert response.json()["detail"] == "expected at least 92 bars, got 91"
+
+
+def test_dashboard_endpoint_uses_sina_source_with_unknown_adjustment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "sina")
+    monkeypatch.setenv("CHAN_QUANT_INSTRUMENT_NAME", "平安银行")
+    monkeypatch.setattr(
+        "chan_quant.api.app.fetch_sina_kline_bars",
+        lambda symbol, *, datalen: build_demo_bars(count=120),
+    )
+
+    response = TestClient(app).get("/api/v1/instruments/000001.sz/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["is_mock"] is False
+    assert payload["instrument"]["symbol"] == "000001.SZ"
+    assert payload["instrument"]["name"] == "平安银行"
+    assert payload["instrument"]["data_source"] == "sina-undocumented-kline"
+    assert payload["instrument"]["adjustment"] == "unknown"
+    assert payload["recommendation"]["warnings"] == [
+        {
+            "type": "DATA_SOURCE_ADJUSTMENT_UNKNOWN",
+            "severity": "WARNING",
+            "message": (
+                "新浪 K 线端点未声明复权口径；除权除息附近的结构、"
+                "信号和事件收益只能作为待核对结果。"
+            ),
+        }
+    ]
+
+
+def test_dashboard_endpoint_maps_sina_upstream_failure_to_502(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "sina")
+
+    def fail_fetch(symbol: str, *, datalen: int):
+        del symbol, datalen
+        raise SinaUpstreamError("Sina K-line request returned HTTP 403")
+
+    monkeypatch.setattr("chan_quant.api.app.fetch_sina_kline_bars", fail_fetch)
+
+    response = TestClient(app).get("/api/v1/instruments/000001.sz/dashboard")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Sina K-line request returned HTTP 403"
