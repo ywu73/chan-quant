@@ -15,15 +15,15 @@ Chan Quant 是一个结构与趋势量化研究台。它把严格三 K 分型、
 脚本会默认使用新浪日 K，同时启动后端和前端，并打印页面地址：
 
 ```text
-http://127.0.0.1:5173/?symbol=000001.SZ
+http://127.0.0.1:5173/
 ```
 
-终端按 `Ctrl+C` 会同时关闭两个进程。默认标的可通过环境变量修改：
+根地址是标的搜索页。可以输入股票 `600519.SH`、ETF `513100.SH`、六位代码或名称 `纳指ETF国泰`，选择沪深股票、ETF 或指数候选后进入研究 Dashboard；Dashboard 顶部可以继续搜索并切换标的。终端按 `Ctrl+C` 会同时关闭两个进程。
 
-```bash
-CHAN_QUANT_SYMBOL=600519.SH \
-CHAN_QUANT_INSTRUMENT_NAME='贵州茅台' \
-./start.sh
+也可以直接打开规范代码 URL：
+
+```text
+http://127.0.0.1:5173/?symbol=600519.SH
 ```
 
 脚本不会自动安装依赖；首次运行仍需按照下一节分别执行 `uv sync --all-groups` 和 `npm ci`。
@@ -70,17 +70,18 @@ uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
 cd backend
 CHAN_QUANT_DATA_SOURCE=sina \
 CHAN_QUANT_SINA_DATALEN=2000 \
-CHAN_QUANT_INSTRUMENT_NAME='平安银行' \
 uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
 ```
 
-前端启动后打开：
+前端启动后打开搜索页：
 
 ```text
-http://127.0.0.1:5173/?symbol=000001.SZ
+http://127.0.0.1:5173/
 ```
 
-新浪模式只支持 `NNNNNN.SZ` 和 `NNNNNN.SH`。响应会明确标记：
+标的名称匹配通过后端低频访问新浪未文档化建议端点，只用于选择标的，不生成策略结论。当前现场支持新浪类别 `11` 和 ETF 类别 `203`；类别 `11` 可能同时出现股票与指数别名，因此不会被强行标记为股票。规范代码可以直接进入；六位代码可能同时对应不同市场，因此页面会展示候选项供用户明确选择。
+
+新浪模式只支持 `NNNNNN.SZ` 和 `NNNNNN.SH`。股票/未知类别响应会明确标记：
 
 ```text
 data_source = sina-undocumented-kline
@@ -89,6 +90,8 @@ strategy.rule_status = DRAFT
 ```
 
 `unadjusted-observed` 表示三个标的的除权窗口在 **2026-07-31** 的现场核验中与原始未复权 OHLC 一致，**不是**新浪提供的固定数据合同。除权除息仍会形成机械跳空，影响均线、通道、分型与事件收益。现场证据、审计命令、访问限制和使用边界见 `docs/sina-data-source.md` 与 `docs/sina-adjustment-research.md`。
+
+ETF 返回 `asset_type=ETF`、`price_precision=3` 和 `adjustment=unspecified`。这表示行情链路能够读取 ETF，但尚未完成该 ETF 的复权、分红和份额折算口径审计；页面会显示独立风险警告，不能把三只股票样本的审计结论外推到 ETF。
 
 ### 独立实时行情
 
@@ -123,6 +126,7 @@ npm run build
 - 页面展示与策略计算分离，前端不得重新实现交易规则。
 - 合成数据上的信号数量和事件统计只验证计算链路，不代表真实市场表现。
 - 新浪实时快照是未文档化 HTTP 端点的低频展示，不是 WebSocket、交易行情 SLA 或实盘性能证据。
+- 新浪标的名称建议同样是未文档化候选接口；类别 `203` 只是在 2026-07-31 ETF 样本中的现场观察，不是正式证券主数据合同或全市场扫描能力。
 - 匿名可访问不等于获得商业使用、再分发或稳定服务授权。
 - 当前没有交易成本、滑点、涨跌停、停牌、分红处理或组合资金曲线。
 - 行情、凭证、API Token 与本地缓存不提交到 Git。

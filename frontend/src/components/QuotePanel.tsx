@@ -11,6 +11,8 @@ const STATUS_DISPLAY: Record<QuoteStatus, { label: string; tone: string }> = {
 
 interface QuotePanelProps {
   symbol: string;
+  instrumentName: string;
+  pricePrecision: number;
   strategyAsOf: string;
   quote: QuoteSnapshot | null;
   error: string | null;
@@ -19,6 +21,8 @@ interface QuotePanelProps {
 
 export function QuotePanel({
   symbol,
+  instrumentName,
+  pricePrecision,
   strategyAsOf,
   quote,
   error,
@@ -31,7 +35,7 @@ export function QuotePanel({
       <div className="quote-panel__header">
         <div>
           <p className="quote-panel__eyebrow">独立快照 · 不参与策略计算</p>
-          <h2>新浪实时行情 · {quote?.name ?? symbol}</h2>
+          <h2>新浪实时行情 · {instrumentName || symbol}</h2>
         </div>
         <span
           className={`quote-status quote-status--${error ? "danger" : (status?.tone ?? "info")}`}
@@ -45,15 +49,15 @@ export function QuotePanel({
         <>
           <div className="quote-panel__content">
             <div className="quote-panel__price">
-              <strong>{formatPrice(quote.last_price)}</strong>
+              <strong>{formatPrice(quote.last_price, pricePrecision)}</strong>
               <span className={`quote-change quote-change--${changeTone}`}>
-                {quote.change >= 0 ? "+" : ""}{quote.change.toFixed(2)} · {formatPercent(quote.change_percent, 2)}
+                {quote.change >= 0 ? "+" : ""}{quote.change.toFixed(pricePrecision)} · {formatPercent(quote.change_percent, 2)}
               </span>
             </div>
             <dl className="quote-facts">
-              <div><dt>今开</dt><dd>{formatPrice(quote.open)}</dd></div>
-              <div><dt>最高</dt><dd>{formatPrice(quote.high)}</dd></div>
-              <div><dt>最低</dt><dd>{formatPrice(quote.low)}</dd></div>
+              <div><dt>今开</dt><dd>{formatPrice(quote.open, pricePrecision)}</dd></div>
+              <div><dt>最高</dt><dd>{formatPrice(quote.high, pricePrecision)}</dd></div>
+              <div><dt>最低</dt><dd>{formatPrice(quote.low, pricePrecision)}</dd></div>
               <div><dt>成交量</dt><dd>{formatVolume(quote.volume)}</dd></div>
             </dl>
           </div>

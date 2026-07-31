@@ -48,12 +48,10 @@ fi
 
 export CHAN_QUANT_DATA_SOURCE="${CHAN_QUANT_DATA_SOURCE:-sina}"
 export CHAN_QUANT_SINA_DATALEN="${CHAN_QUANT_SINA_DATALEN:-2000}"
-export CHAN_QUANT_SYMBOL="${CHAN_QUANT_SYMBOL:-000001.SZ}"
-export CHAN_QUANT_INSTRUMENT_NAME="${CHAN_QUANT_INSTRUMENT_NAME:-平安银行}"
 
 echo "正在启动 Chan Quant…"
 echo "数据源：$CHAN_QUANT_DATA_SOURCE"
-echo "页面：http://127.0.0.1:5173/?symbol=$CHAN_QUANT_SYMBOL"
+echo "页面：http://127.0.0.1:5173/"
 echo "按 Ctrl+C 可同时关闭前后端。"
 
 (

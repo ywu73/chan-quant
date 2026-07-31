@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from chan_quant.domain.instrument import InstrumentIdentity
+
 TrendState = Literal["BULLISH", "BEARISH", "NEUTRAL"]
 
 
@@ -22,9 +24,7 @@ class StructuralTiming(BaseModel):
         return self
 
 
-class Instrument(BaseModel):
-    symbol: str
-    name: str
+class Instrument(InstrumentIdentity):
     timeframe: str
     as_of: date
     last_price: float

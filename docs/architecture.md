@@ -11,24 +11,33 @@
                                           ├─> React + ECharts
 新浪未文档化实时快照 -> QuoteSnapshot     │
   -> 独立 Quote API ──────────────────────┘
+
+新浪未文档化证券建议 -> InstrumentIdentity
+  -> 独立 Search API -> 初始页 / Dashboard 标的切换
 ```
 
 ## 模块边界
 
 - `backend/src/chan_quant/domain`：稳定领域数据模型与时间约束。
-- `backend/src/chan_quant/data`：CSV、新浪 K 线与新浪实时快照适配、代码映射、输入和上游错误归一化。
+- `backend/src/chan_quant/data`：CSV、新浪 K 线、实时快照与标的元数据适配、代码映射、输入和上游错误归一化。
+- `backend/src/chan_quant/domain/instrument.py`：稳定标的身份，包括规范代码、名称、交易所、可确认的资产类别与价格精度。
 - `backend/src/chan_quant/audit`：候选行情与参考日线、交易日历及历史快照的可复现质量审计。
 - `backend/src/chan_quant/strategy`：指标、结构和 Independent v0.1 信号引擎。
 - `backend/src/chan_quant/backtest`：无成本的信号事件研究，不是组合回测。
 - `backend/src/chan_quant/services`：合成行情生成与 Dashboard 快照组装。
 - `backend/src/chan_quant/api`：HTTP 适配层，不包含策略规则。
 - `frontend/src/api`：Dashboard 与 Quote 快照获取及错误处理。
+- `frontend/src/components/InstrumentSearch.tsx`：标的输入、搜索建议和选择交互，不计算策略规则。
 - `frontend/src/quotePolling.ts`：8 秒低频轮询、页面可见性暂停和生命周期清理。
 - `frontend/src/components`：纯展示组件和图表。
 
 后端是策略事实的唯一所有者。前端只消费快照，不能重新计算均线、多空、共振、信号或事件成功率。
 
 新浪端点不允许前端直连。后端负责请求和 GB18030 兼容解码：K 线 JSON 归一化为 `MarketBar`，实时赋值语句归一化为 `QuoteSnapshot`。两条链路只在页面展示层并列，Quote 模块不接受 `MarketBar`、不调用策略引擎，也不写回 Dashboard。外部响应中的均线字段和盘中价格都不参与策略计算。
+
+标的名称搜索同样只允许后端访问新浪未文档化建议端点。适配器在同一个深模块中完成类型过滤、代码规范化、精确身份解析和价格精度选择：现场类别 `203` 标记为 `ETF` 并使用三位价格，类别 `11` 因可能包含股票与指数别名而保留为 `UNKNOWN`。搜索结果只决定用户选择的 Dashboard URL，不生成信号、推荐或全市场扫描结论。元数据查询失败时，Dashboard 回退显示请求中的规范代码和未知口径，不能沿用其他标的的全局名称。
+
+Dashboard 和 Quote 展示以 `InstrumentIdentity` 为稳定身份。Quote 响应中的名称保留为上游原始字段，但不能覆盖 Dashboard 主标题，因为新浪实时接口可能对 ETF 返回简称。ETF 日 K 可以进入现有策略计算，但使用 `adjustment=unspecified` 和独立风险提示；三只股票样本的复权观察不得外推到 ETF。
 
 审计模块负责对照原始日线、公司行动、交易日历和重复快照；审计结论由后端生成，不在前端重新推导，也不会把实时 Quote 引入日线策略。
 

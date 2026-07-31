@@ -6,6 +6,10 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from chan_quant.data.csv_source import CsvDataError, load_csv_bars
+from chan_quant.data.sina_instrument_source import (
+    fetch_sina_instrument,
+    search_sina_instruments,
+)
 from chan_quant.data.sina_quote_source import SinaQuoteUnavailableError, fetch_sina_quote
 from chan_quant.data.sina_source import (
     SinaDataError,
@@ -13,6 +17,7 @@ from chan_quant.data.sina_source import (
     fetch_sina_kline_bars,
 )
 from chan_quant.domain.dashboard import DashboardSnapshot
+from chan_quant.domain.instrument import InstrumentIdentity, InstrumentSearchResponse
 from chan_quant.domain.quote import QuoteSnapshot
 from chan_quant.services.dashboard_builder import build_dashboard
 from chan_quant.services.demo_market import build_demo_bars
@@ -27,6 +32,20 @@ app = FastAPI(
 )
 
 DataMode = Literal["synthetic", "csv", "sina"]
+
+
+def _fallback_instrument(symbol: str, name: str) -> InstrumentIdentity:
+    canonical = symbol.strip().upper()
+    exchange = canonical.rsplit(".", 1)[-1] if "." in canonical else None
+    if exchange not in {"SZ", "SH"}:
+        exchange = None
+    return InstrumentIdentity(
+        symbol=canonical,
+        name=name,
+        exchange=cast(Literal["SZ", "SH"] | None, exchange),
+        asset_type="UNKNOWN",
+        price_precision=2,
+    )
 
 
 def _configured_data_mode() -> DataMode:
@@ -47,6 +66,7 @@ def _sina_datalen() -> int:
     if not 92 <= datalen <= 10_000:
         raise ValueError("CHAN_QUANT_SINA_DATALEN must be between 92 and 10000")
     return datalen
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -70,6 +90,30 @@ def health() -> dict[str, str]:
         "data_mode": data_mode,
         "strategy": "independent-v0.1.0-draft",
     }
+
+
+@app.get(
+    "/api/v1/instruments/search",
+    response_model=InstrumentSearchResponse,
+)
+def instrument_search(
+    q: str = Query(min_length=1, max_length=40),
+    limit: int = Query(default=8, ge=1, le=20),
+) -> InstrumentSearchResponse:
+    normalized_query = q.strip()
+    if not normalized_query:
+        raise HTTPException(status_code=422, detail="instrument search query must not be empty")
+    try:
+        items = search_sina_instruments(normalized_query, limit=limit)
+        return InstrumentSearchResponse(
+            query=normalized_query,
+            items=items,
+            limit=limit,
+        )
+    except SinaUpstreamError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except SinaDataError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.get(
@@ -109,25 +153,34 @@ def dashboard(
             data_source = "csv"
             adjustment = os.getenv("CHAN_QUANT_ADJUSTMENT", "unspecified")
             name = os.getenv("CHAN_QUANT_INSTRUMENT_NAME", symbol.upper())
+            instrument = _fallback_instrument(symbol, name)
         elif data_mode == "sina":
             bars = fetch_sina_kline_bars(symbol, datalen=_sina_datalen())
             is_mock = False
             data_source = "sina-undocumented-kline"
-            adjustment = "unadjusted-observed"
-            name = os.getenv("CHAN_QUANT_INSTRUMENT_NAME", symbol.upper())
+            try:
+                instrument = fetch_sina_instrument(symbol)
+                adjustment = (
+                    "unspecified" if instrument.asset_type == "ETF" else "unadjusted-observed"
+                )
+            except (SinaDataError, SinaUpstreamError):
+                # Instrument metadata must never make an otherwise valid research
+                # snapshot unavailable. A canonical symbol is safer than a stale
+                # or globally configured name belonging to another instrument.
+                instrument = _fallback_instrument(symbol, symbol.upper())
+                adjustment = "unspecified"
         else:
             bars = build_demo_bars()
             is_mock = True
             data_source = "deterministic-synthetic"
             adjustment = "not-applicable"
-            name = "Independent v0.1 演示标的"
+            instrument = _fallback_instrument(symbol, "Independent v0.1 演示标的")
 
         if as_of is not None:
             bars = [bar for bar in bars if bar.date <= as_of]
         return build_dashboard(
             bars,
-            symbol=symbol.upper(),
-            name=name,
+            instrument=instrument,
             is_mock=is_mock,
             data_source=data_source,
             adjustment=adjustment,

@@ -89,6 +89,7 @@ https://hq.sinajs.cn/?list=sz000001
 ```text
 000001.SZ -> sz000001
 600519.SH -> sh600519
+513100.SH -> sh513100
 scale = 240
 ma = no
 datalen = CHAN_QUANT_SINA_DATALEN（默认 2000）
@@ -101,10 +102,13 @@ day -> date
 open/high/low/close -> float
 volume -> int
 amount -> null
-adjustment -> unadjusted-observed
+股票/类型 11 adjustment -> unadjusted-observed（有限样本观测）
+ETF/类型 203 adjustment -> unspecified（ETF 口径未审计）
 ```
 
 北京证券交易所代码暂不支持。HTTP 非 200、连接失败、超时和畸形响应视为上游故障；规范代码无数据、无效配置和历史不足视为输入/数据合同错误。
+
+2026-07-31 的现场建议响应中，`510300.SH`、`159915.SZ`、`588000.SH` 和 `513100.SH` 均使用类别 `203`；当前适配器据此将该类别标记为 `ETF` 并使用三位价格精度。该映射不是新浪公开合同。`513100.SH` 与 `159915.SZ` 的日 K 和实时快照链路已完成有界烟测，但这只证明当时能够读取，不证明字段、名称、复权、分红、份额折算或 SLA 稳定。
 
 ## 复权与完整性审计
 
@@ -150,11 +154,12 @@ trade_date|date, open, high, low, close, pre_close, vol|volume
 
 **已观察到的事实**：上述样本和时点中，新浪 K 线与原始未复权 OHLC 一致；三标的指定窗口内未观察到交易日缺失；同会话快照未观察到历史修订。
 
-**不能确认的事项**：新浪没有为该端点提供公开复权合同、字段版本或 SLA；尚未完成跨月历史修订监控，也没有穷举全部股票、停牌、退市、上市首日和所有参数组合。
+**不能确认的事项**：新浪没有为该端点提供公开复权合同、字段版本或 SLA；尚未完成跨月历史修订监控，也没有穷举全部股票、ETF、指数、停牌、退市、上市首日和所有参数组合。ETF 的分红、份额折算和拆合口径没有纳入三只股票样本的审计。
 
 因此：
 
 - `instrument.adjustment=unadjusted-observed` 只能解释为证据有界的现场标签；
+- ETF 使用 `instrument.adjustment=unspecified`，不能把三只股票样本的结论外推到 ETF；
 - 页面必须保留“无固定口径合同”的警告；
 - 除权除息造成的机械跳变仍会进入 EMA、Donchian 通道、分型和事件研究；
 - 信号和事件统计仍只用于结构审计，不能直接与前复权或后复权序列比较表现；

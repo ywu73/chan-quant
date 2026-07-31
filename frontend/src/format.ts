@@ -10,14 +10,19 @@ export function formatDate(value: string): string {
   return value.slice(5);
 }
 
-export function formatPrice(value: number): string {
+export function formatPrice(value: number, digits = 2): string {
   return new Intl.NumberFormat("zh-CN", {
     style: "currency",
     currency: "CNY",
     currencyDisplay: "narrowSymbol",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(value);
+}
+
+export function formatPriceValue(value: number | string, digits = 2): string {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue.toFixed(digits) : String(value);
 }
 
 export function formatVolume(value: number): string {

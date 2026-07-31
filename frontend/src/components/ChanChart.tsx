@@ -10,6 +10,8 @@ import { init, use, type EChartsCoreOption } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useMemo, useRef } from "react";
 
+import { getVolumeBarColor } from "../chartStyle";
+import { formatPriceValue } from "../format";
 import type { DashboardSnapshot } from "../types/dashboard";
 
 use([
@@ -25,7 +27,13 @@ use([
   CanvasRenderer,
 ]);
 
-export function ChanChart({ chart }: { chart: DashboardSnapshot["chart"] }) {
+export function ChanChart({
+  chart,
+  pricePrecision,
+}: {
+  chart: DashboardSnapshot["chart"];
+  pricePrecision: number;
+}) {
   const elementRef = useRef<HTMLDivElement>(null);
 
   const option = useMemo<EChartsCoreOption>(() => {
@@ -34,7 +42,10 @@ export function ChanChart({ chart }: { chart: DashboardSnapshot["chart"] }) {
     const buyLine = chart.bars.map((bar) => bar.buy_line);
     const sellLine = chart.bars.map((bar) => bar.sell_line);
     const ma57 = chart.bars.map((bar) => bar.ma57);
-    const volume = chart.bars.map((bar) => bar.volume);
+    const volume = chart.bars.map((bar) => ({
+      value: bar.volume,
+      itemStyle: { color: getVolumeBarColor(bar.open, bar.close) },
+    }));
     const dateIndex = new Map(chart.bars.map((bar, index) => [bar.date, index]));
 
     const strokeSeries = chart.strokes.map((stroke, index) => ({
@@ -114,7 +125,10 @@ export function ChanChart({ chart }: { chart: DashboardSnapshot["chart"] }) {
         {
           scale: true,
           splitLine: { lineStyle: { color: "#edf1f6" } },
-          axisLabel: { color: "#91a0b5" },
+          axisLabel: {
+            color: "#91a0b5",
+            formatter: (value: number | string) => formatPriceValue(value, pricePrecision),
+          },
         },
         {
           scale: true,
@@ -174,11 +188,10 @@ export function ChanChart({ chart }: { chart: DashboardSnapshot["chart"] }) {
           xAxisIndex: 1,
           yAxisIndex: 1,
           data: volume,
-          itemStyle: { color: "#d0d8e4" },
         },
       ],
     };
-  }, [chart]);
+  }, [chart, pricePrecision]);
 
   useEffect(() => {
     if (!elementRef.current) return;

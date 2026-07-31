@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from chan_quant.api.app import app
 from chan_quant.data.sina_source import SinaUpstreamError
 from chan_quant.domain.dashboard import StructuralTiming
+from chan_quant.domain.instrument import InstrumentIdentity
 from chan_quant.services.dashboard_builder import (
     line_spread_pct,
     relative_to_line,
@@ -20,8 +21,7 @@ def _write_demo_csv(path: Path, count: int) -> None:
     rows = ["trade_date,open,high,low,close,volume,amount"]
     for bar in build_demo_bars(count=count):
         rows.append(
-            f"{bar.date.isoformat()},{bar.open},{bar.high},{bar.low},"
-            f"{bar.close},{bar.volume},"
+            f"{bar.date.isoformat()},{bar.open},{bar.high},{bar.low},{bar.close},{bar.volume},"
         )
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
@@ -123,10 +123,19 @@ def test_dashboard_endpoint_uses_sina_source_with_observed_adjustment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "sina")
-    monkeypatch.setenv("CHAN_QUANT_INSTRUMENT_NAME", "平安银行")
     monkeypatch.setattr(
         "chan_quant.api.app.fetch_sina_kline_bars",
         lambda symbol, *, datalen: build_demo_bars(count=120),
+    )
+    monkeypatch.setattr(
+        "chan_quant.api.app.fetch_sina_instrument",
+        lambda symbol: InstrumentIdentity(
+            symbol="000001.SZ",
+            name="平安银行",
+            exchange="SZ",
+            asset_type="UNKNOWN",
+            price_precision=2,
+        ),
     )
 
     response = TestClient(app).get("/api/v1/instruments/000001.sz/dashboard")
@@ -138,16 +147,87 @@ def test_dashboard_endpoint_uses_sina_source_with_observed_adjustment(
     assert payload["instrument"]["name"] == "平安银行"
     assert payload["instrument"]["data_source"] == "sina-undocumented-kline"
     assert payload["instrument"]["adjustment"] == "unadjusted-observed"
+    assert payload["instrument"]["asset_type"] == "UNKNOWN"
+    assert payload["instrument"]["price_precision"] == 2
     assert payload["recommendation"]["warnings"] == [
         {
             "type": "DATA_SOURCE_ADJUSTMENT_UNCONTRACTED",
             "severity": "WARNING",
             "message": (
-                "三标的除权窗口观测与不复权原始行情一致，但新浪没有提供"
+                "三只股票样本的除权窗口观测与不复权原始行情一致，但新浪没有提供"
                 "固定口径合同；除权除息仍可能制造机械结构和事件信号。"
             ),
         }
     ]
+
+
+def test_dashboard_endpoint_uses_etf_metadata_precision_and_risk_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "sina")
+    monkeypatch.setattr(
+        "chan_quant.api.app.fetch_sina_kline_bars",
+        lambda symbol, *, datalen: build_demo_bars(count=120),
+    )
+    monkeypatch.setattr(
+        "chan_quant.api.app.fetch_sina_instrument",
+        lambda symbol: InstrumentIdentity(
+            symbol="513100.SH",
+            name="纳指ETF国泰",
+            exchange="SH",
+            asset_type="ETF",
+            price_precision=3,
+        ),
+    )
+
+    response = TestClient(app).get("/api/v1/instruments/513100.sh/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["instrument"]["symbol"] == "513100.SH"
+    assert payload["instrument"]["name"] == "纳指ETF国泰"
+    assert payload["instrument"]["asset_type"] == "ETF"
+    assert payload["instrument"]["price_precision"] == 3
+    assert payload["instrument"]["adjustment"] == "unspecified"
+    assert payload["metrics"][0]["value"].count(".") == 1
+    assert len(payload["metrics"][0]["value"].split(".")[1]) == 3
+    assert payload["recommendation"]["warnings"] == [
+        {
+            "type": "ETF_ADJUSTMENT_UNVERIFIED",
+            "severity": "WARNING",
+            "message": (
+                "该 ETF 的复权、分红与份额折算口径尚未完成审计；"
+                "原始序列中的机械跳变会直接进入指标、结构、信号和事件研究。"
+            ),
+        }
+    ]
+    assert "ETF 日 K" in payload["recommendation"]["summary"]
+
+
+def test_sina_dashboard_falls_back_to_symbol_when_metadata_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "sina")
+    monkeypatch.setenv("CHAN_QUANT_INSTRUMENT_NAME", "错误的全局名称")
+    monkeypatch.setattr(
+        "chan_quant.api.app.fetch_sina_kline_bars",
+        lambda symbol, *, datalen: build_demo_bars(count=120),
+    )
+
+    def fail_metadata(symbol: str) -> str:
+        del symbol
+        raise SinaUpstreamError("metadata unavailable")
+
+    monkeypatch.setattr("chan_quant.api.app.fetch_sina_instrument", fail_metadata)
+
+    response = TestClient(app).get("/api/v1/instruments/600519.sh/dashboard")
+
+    assert response.status_code == 200
+    assert response.json()["instrument"]["name"] == "600519.SH"
+    assert response.json()["instrument"]["adjustment"] == "unspecified"
+    assert response.json()["recommendation"]["warnings"][0]["type"] == (
+        "INSTRUMENT_METADATA_UNAVAILABLE"
+    )
 
 
 def test_dashboard_endpoint_maps_sina_upstream_failure_to_502(

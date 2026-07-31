@@ -65,18 +65,21 @@ CSV 模式返回 `is_mock=false` 和 `data_source=csv`，只代表行情不再�
 |---|---|---|
 | `CHAN_QUANT_DATA_SOURCE` | 无 | 新浪模式必须为 `sina` |
 | `CHAN_QUANT_SINA_DATALEN` | `2000` | 整数，范围 `92..10000` |
-| `CHAN_QUANT_INSTRUMENT_NAME` | URL 标的代码 | 仅用于展示名称 |
+
+新浪模式下的标的身份通过同一后端元数据适配器解析，包括名称、交易所、可确认的资产类别和价格精度；解析失败时显示规范代码、使用两位价格和未知类别。`CHAN_QUANT_INSTRUMENT_NAME` 只用于外部 CSV 模式，不能覆盖新浪 URL 标的的名称。
 
 仅支持规范代码 `NNNNNN.SZ` 和 `NNNNNN.SH`。适配器固定请求日线 `scale=240`、关闭新浪均线 `ma=no`，以确保所有 EMA/SMA 仍由本项目后端计算。
 
-新浪响应没有成交额或复权声明。2026-07-31 的三标的除权窗口核验均与原始未复权 OHLC 一致，因此当前版本返回一个**观测标签**：
+新浪响应没有成交额或复权声明。2026-07-31 的三只股票除权窗口核验均与原始未复权 OHLC 一致，因此类型 `11` 的当前股票/指数候选沿用一个**证据有界的观测标签**：
 
 ```json
 {
   "is_mock": false,
   "instrument": {
     "data_source": "sina-undocumented-kline",
-    "adjustment": "unadjusted-observed"
+    "adjustment": "unadjusted-observed",
+    "asset_type": "UNKNOWN",
+    "price_precision": 2
   },
   "strategy": {
     "rule_status": "DRAFT"
@@ -86,18 +89,64 @@ CSV 模式返回 `is_mock=false` 和 `data_source=csv`，只代表行情不再�
 
 该值不是 `unadjusted`、`qfq` 或 `hfq` 的上游合同。它只表示当前审计证据支持“现场表现为不复权”；新浪没有公开字段合同、口径版本或 SLA，未来响应仍可能变化。前端必须同时展示这一限制，策略结论不得省略该警告。
 
+现场类别 `203` 的 ETF 返回：
+
+```json
+{
+  "instrument": {
+    "symbol": "513100.SH",
+    "name": "纳指ETF国泰",
+    "exchange": "SH",
+    "asset_type": "ETF",
+    "price_precision": 3,
+    "adjustment": "unspecified"
+  }
+}
+```
+
+`unspecified` 表示 ETF 行情可读取，但该 ETF 的复权、分红和份额折算口径尚未审计。三只股票样本的证据不得外推到 ETF。元数据不可用时也返回 `adjustment=unspecified`，避免把未知标的误写成已经观察到不复权。
+
 HTTP 非 200、连接失败、超时、编码或 JSON 畸形映射为 HTTP `502`；无效标的、配置或历史不足映射为 HTTP `422`。详细现场证据和授权边界见 `sina-data-source.md`。
 
 ## 核心约束
 
 - 后端拥有全部策略计算和状态判断。
 - 前端只格式化后端值，不重新判断多空、共振或操作结论。
-- 指标卡当前以已格式化字符串传输；领域计算中的比例使用十进制，例如 `-0.2085` 显示为 `-20.85%`。
+- 指标卡当前以已格式化字符串传输；股票/未知类别默认使用两位价格，ETF 使用三位价格。领域计算中的比例使用十进制，例如 `-0.2085` 显示为 `-20.85%`。
 - 所有日期使用 ISO 8601。
 - `headline_total = buy_total + sell_total + excluded_total`。
 - 每个周期满足 `successes <= eligible <= total_signals`。
 - 每个信号满足 `structure_at <= confirmed_at <= executable_at`；没有下一根 K 线时 `executable_at=null`。
 - 事件收益使用确认后的下一根可用 K 线开盘价，目标索引为执行索引加 `N - 1`。
+
+## 证券搜索接口
+
+```http
+GET /api/v1/instruments/search?q=纳指ETF%20国泰%20513100&limit=8
+```
+
+该接口由后端访问新浪未文档化标的建议端点，前端不得直连。当前只保留现场类型 `11` 和 ETF 类型 `203`，且代码必须可规范化为 `NNNNNN.SZ` 或 `NNNNNN.SH`。类型 `11` 可能包含股票与指数别名，因此返回 `asset_type=UNKNOWN`；类型 `203` 返回 `asset_type=ETF`：
+
+```json
+{
+  "query": "纳指ETF 国泰 513100",
+  "items": [
+    {
+      "symbol": "513100.SH",
+      "name": "纳指ETF国泰",
+      "exchange": "SH",
+      "asset_type": "ETF",
+      "price_precision": 3
+    }
+  ],
+  "source": "sina-undocumented-suggest",
+  "limit": 8
+}
+```
+
+`q` 去除首尾空白后长度必须为 `1..40`，`limit` 必须为 `1..20`。无匹配返回空数组；输入错误返回 `422`，连接、HTTP、编码、赋值语句或字段合同异常返回 `502`。六位代码可能同时对应不同市场，前端必须展示候选结果，不能静默猜测交易所；完整规范代码可以直接进入 Dashboard。
+
+搜索结果是未文档化候选元数据，只用于选择单标的研究页面，不是正式证券主数据、全市场行情扫描或策略筛选结果。`203 -> ETF` 是 2026-07-31 对 `510300`、`159915`、`588000` 和 `513100` 等样本的现场观察，不是新浪公开合同。
 
 ## 独立实时 Quote 接口
 

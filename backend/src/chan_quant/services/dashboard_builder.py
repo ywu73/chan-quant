@@ -20,6 +20,7 @@ from chan_quant.domain.dashboard import (
     StructuralTiming,
     WarningItem,
 )
+from chan_quant.domain.instrument import InstrumentIdentity
 from chan_quant.domain.market import MarketBar
 from chan_quant.domain.strategy import SignalSide, StrategyResult, TrendState
 from chan_quant.strategy.engine import run_strategy
@@ -89,8 +90,7 @@ def _action(result: StrategyResult, bar_count: int) -> tuple[str, str, int | Non
 def build_dashboard(
     bars: list[MarketBar],
     *,
-    symbol: str,
-    name: str,
+    instrument: InstrumentIdentity,
     is_mock: bool,
     data_source: str,
     adjustment: str,
@@ -140,16 +140,44 @@ def build_dashboard(
 
     warnings: list[WarningItem] = []
     if data_source == "sina-undocumented-kline":
-        warnings.append(
-            WarningItem(
-                type="DATA_SOURCE_ADJUSTMENT_UNCONTRACTED",
-                severity="WARNING",
-                message=(
-                    "三标的除权窗口观测与不复权原始行情一致，但新浪没有提供"
-                    "固定口径合同；除权除息仍可能制造机械结构和事件信号。"
-                ),
+        if instrument.asset_type == "ETF":
+            warnings.append(
+                WarningItem(
+                    type="ETF_ADJUSTMENT_UNVERIFIED",
+                    severity="WARNING",
+                    message=(
+                        "该 ETF 的复权、分红与份额折算口径尚未完成审计；"
+                        "原始序列中的机械跳变会直接进入指标、结构、信号和事件研究。"
+                    ),
+                )
             )
-        )
+        elif adjustment == "unadjusted-observed":
+            warnings.append(
+                WarningItem(
+                    type="DATA_SOURCE_ADJUSTMENT_UNCONTRACTED",
+                    severity="WARNING",
+                    message=(
+                        "三只股票样本的除权窗口观测与不复权原始行情一致，但新浪没有提供"
+                        "固定口径合同；除权除息仍可能制造机械结构和事件信号。"
+                    ),
+                )
+            )
+        else:
+            warnings.append(
+                WarningItem(
+                    type="INSTRUMENT_METADATA_UNAVAILABLE",
+                    severity="WARNING",
+                    message=(
+                        "当前标的元数据不可用，行情复权口径未经确认；"
+                        "原始序列中的机械跳变可能影响指标、结构和事件研究。"
+                    ),
+                )
+            )
+
+    precision = instrument.price_precision
+
+    def price(value: float) -> str:
+        return f"¥{value:.{precision}f}"
 
     recommendation = Recommendation(
         action=action,
@@ -158,16 +186,25 @@ def build_dashboard(
             "当前使用合成行情验证 Independent v0.1 规则，不代表真实市场结论。"
             if is_mock
             else (
-                "当前使用新浪财经未文档化匿名 K 线端点；现场观测为不复权，"
-                "但没有固定口径合同，仅供研究审计。"
+                (
+                    "当前使用新浪财经未文档化 ETF 日 K；复权、分红与份额折算"
+                    "口径未经验证，仅供研究审计。"
+                    if instrument.asset_type == "ETF"
+                    else (
+                        "当前使用新浪财经未文档化匿名 K 线端点；有限股票样本"
+                        "现场观测为不复权，但没有固定口径合同，仅供研究审计。"
+                        if adjustment == "unadjusted-observed"
+                        else "当前使用新浪财经未文档化匿名 K 线端点；标的元数据与复权口径未经确认，仅供研究审计。"
+                    )
+                )
                 if data_source == "sina-undocumented-kline"
                 else "当前使用外部 CSV 行情和 Independent v0.1 草案规则，仅供研究审计。"
             )
         ),
         filter_reasons=filters,
         evidence_lines=[
-            f"EMA24 ¥{fast:.2f} vs EMA90 ¥{slow:.2f}，差 {fast - slow:+.2f}（{relation}）",
-            f"趋势均线 MA57 ¥{trend:.2f}，价格在趋势线{'上方' if current_price > trend else '下方'}",
+            f"EMA24 {price(fast)} vs EMA90 {price(slow)}，差 {fast - slow:+.{precision}f}（{relation}）",
+            f"趋势均线 MA57 {price(trend)}，价格在趋势线{'上方' if current_price > trend else '下方'}",
             f"通道：短周期{_trend_text(latest.short_channel.state)} · 长周期{_trend_text(latest.long_channel.state)}",
             f"均线：日线{_trend_text(latest.daily_trend)} · 周线{weekly_label}",
         ],
@@ -238,8 +275,7 @@ def build_dashboard(
     return DashboardSnapshot(
         is_mock=is_mock,
         instrument=Instrument(
-            symbol=symbol,
-            name=name,
+            **instrument.model_dump(),
             timeframe="1d",
             as_of=bars[-1].date,
             last_price=current_price,
@@ -252,14 +288,14 @@ def build_dashboard(
             MetricCard(
                 key="buy_line",
                 label="买线 EMA24",
-                value=f"¥{fast:.2f}",
+                value=price(fast),
                 detail=f"现价 {relative_to_line(current_price, fast):+.2%}",
                 tone="blue",
             ),
             MetricCard(
                 key="sell_line",
                 label="卖线 EMA90",
-                value=f"¥{slow:.2f}",
+                value=price(slow),
                 detail=f"现价 {relative_to_line(current_price, slow):+.2%}",
                 tone="red",
             ),
@@ -273,7 +309,7 @@ def build_dashboard(
             MetricCard(
                 key="ma57",
                 label="趋势线 MA57",
-                value=f"¥{trend:.2f}",
+                value=price(trend),
                 detail=f"现价 {relative_to_line(current_price, trend):+.2%}",
                 tone="purple",
             ),

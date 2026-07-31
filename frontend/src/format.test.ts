@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatDate,
   formatPrice,
+  formatPriceValue,
   formatQuoteTime,
   formatVolume,
 } from "./format";
@@ -20,6 +21,10 @@ describe("display formatting", () => {
 
   it("formats quote facts without changing their meaning", () => {
     expect(formatPrice(11.6)).toBe("¥11.60");
+    expect(formatPrice(2.112, 3)).toBe("¥2.112");
+    expect(formatPriceValue(11.6)).toBe("11.60");
+    expect(formatPriceValue("2.112", 3)).toBe("2.112");
+    expect(formatPriceValue("--", 3)).toBe("--");
     expect(formatVolume(63_210_000)).toBe("6321.00 万");
     expect(formatVolume(632_100_000)).toBe("6.32 亿");
     expect(formatQuoteTime("2026-07-31T14:35:06+08:00")).toBe(

@@ -3,6 +3,9 @@ export type Tone = "neutral" | "warning" | "danger" | "info" | "positive";
 export interface Instrument {
   symbol: string;
   name: string;
+  exchange: "SZ" | "SH" | null;
+  asset_type: "ETF" | "UNKNOWN";
+  price_precision: number;
   timeframe: string;
   as_of: string;
   last_price: number;
