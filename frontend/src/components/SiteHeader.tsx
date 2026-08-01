@@ -83,7 +83,10 @@ export function SiteHeader({
         </a>
       </nav>
 
-      <InstrumentSearch variant="compact" onSelect={onSelect} />
+      <InstrumentSearch
+        variant="compact"
+        onSelect={(instrument) => onSelect(instrument.symbol)}
+      />
     </header>
   );
 }

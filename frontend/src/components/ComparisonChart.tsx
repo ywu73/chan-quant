@@ -22,7 +22,16 @@ use([
 ]);
 
 
-const SERIES_COLORS = ["#4169d8", "#d6604d", "#2e9b70", "#835cc7", "#c2832f"];
+const SERIES_COLORS = [
+  "#4169d8",
+  "#d6604d",
+  "#2e9b70",
+  "#835cc7",
+  "#c2832f",
+  "#2f8fa8",
+  "#b6518c",
+  "#68788d",
+];
 
 
 function seriesLabel(name: string, symbol: string): string {
@@ -36,8 +45,10 @@ export function ComparisonChart({ comparison }: { comparison: MarketComparison }
     animation: false,
     color: SERIES_COLORS,
     legend: {
+      type: "scroll",
       top: 2,
       left: 0,
+      right: 0,
       data: comparison.series.map((item) => seriesLabel(
         item.instrument.name,
         item.instrument.symbol,

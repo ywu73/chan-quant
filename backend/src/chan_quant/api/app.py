@@ -40,6 +40,9 @@ app = FastAPI(
     ),
 )
 
+COMPARISON_MIN_SYMBOLS = 2
+COMPARISON_MAX_SYMBOLS = 8
+
 DataMode = Literal["synthetic", "csv", "sina", "snapshot"]
 
 
@@ -190,8 +193,8 @@ def market_comparison(
     end: date | None = None,
 ) -> MarketComparison:
     canonical_symbols = [symbol.strip().upper() for symbol in symbols]
-    if not 2 <= len(canonical_symbols) <= 5:
-        raise HTTPException(status_code=422, detail="comparison requires 2 to 5 symbols")
+    if not COMPARISON_MIN_SYMBOLS <= len(canonical_symbols) <= COMPARISON_MAX_SYMBOLS:
+        raise HTTPException(status_code=422, detail="comparison requires 2 to 8 symbols")
     if len(set(canonical_symbols)) != len(canonical_symbols):
         raise HTTPException(status_code=422, detail="comparison symbols must be distinct")
     try:

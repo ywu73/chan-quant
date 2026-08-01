@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { appViewFromLocation, symbolFromSearch } from "./App";
-import { normalizeDirectSymbol } from "./components/InstrumentSearch";
+import {
+  directInstrumentFromSymbol,
+  normalizeDirectSymbol,
+} from "./components/InstrumentSearch";
 
 
 describe("instrument navigation", () => {
@@ -12,6 +15,16 @@ describe("instrument navigation", () => {
     expect(normalizeDirectSymbol("000001")).toBeNull();
     expect(normalizeDirectSymbol("DEMO.SZ")).toBeNull();
     expect(normalizeDirectSymbol("430047.BJ")).toBeNull();
+  });
+
+  it("preserves a complete conservative identity for direct canonical input", () => {
+    expect(directInstrumentFromSymbol(" 000001.sh ")).toEqual({
+      symbol: "000001.SH",
+      name: "000001.SH",
+      exchange: "SH",
+      asset_type: "UNKNOWN",
+      price_precision: 2,
+    });
   });
 
   it("keeps the root URL as an empty landing state", () => {

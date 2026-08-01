@@ -200,10 +200,44 @@ def test_market_comparison_endpoint_returns_partial_sina_result(
     assert payload["series"][0]["warnings"][0]["code"] == ("DATA_SOURCE_ADJUSTMENT_UNCONTRACTED")
 
 
+def test_market_comparison_endpoint_accepts_eight_symbols(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "sina")
+    symbols = [f"{code:06d}.SZ" for code in range(1, 9)]
+
+    monkeypatch.setattr(
+        "chan_quant.api.app.fetch_sina_kline_bars",
+        lambda symbol, *, datalen: [_bar(1, 100), _bar(2, 101)],
+    )
+    monkeypatch.setattr(
+        "chan_quant.api.app.fetch_sina_instrument",
+        lambda symbol: InstrumentIdentity(
+            symbol=symbol,
+            name=symbol,
+            exchange="SZ",
+            asset_type="UNKNOWN",
+            price_precision=2,
+        ),
+    )
+
+    response = TestClient(app).get(
+        "/api/v1/market-comparison",
+        params=[("symbols", symbol) for symbol in symbols],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["requested"] == symbols
+
+
 @pytest.mark.parametrize(
     ("params", "message"),
     [
-        ([("symbols", "000001.SZ")], "comparison requires 2 to 5 symbols"),
+        ([("symbols", "000001.SZ")], "comparison requires 2 to 8 symbols"),
+        (
+            [("symbols", f"{code:06d}.SZ") for code in range(1, 10)],
+            "comparison requires 2 to 8 symbols",
+        ),
         (
             [("symbols", "000001.SZ"), ("symbols", "000001.sz")],
             "comparison symbols must be distinct",

@@ -1,8 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 
 import { fetchMarketComparison } from "../api/comparison";
+import {
+  BUILT_IN_BOARDS,
+  COMPARISON_MAX_INSTRUMENTS,
+  COMPARISON_MIN_INSTRUMENTS,
+  createBoardStore,
+  prepareBoardSelection,
+  type BoardInstrument,
+  type BoardStorageIssue,
+  type BuiltInBoard,
+  type StoredBoardV1,
+} from "../comparisonBoards";
+import { createComparisonRequestRunner } from "../comparisonRequest";
 import { formatPercent } from "../format";
 import type { MarketComparison } from "../types/comparison";
+import type { InstrumentIdentity } from "../types/instrument";
+import { ComparisonBoardPicker } from "./ComparisonBoardPicker";
 import { ComparisonChart } from "./ComparisonChart";
 import { InstrumentSearch } from "./InstrumentSearch";
 
@@ -11,39 +25,129 @@ function formatDateRange(start: string | null, end: string | null): string {
   return start && end ? `${start} — ${end}` : "没有可比较的共同日期区间";
 }
 
+function toBoardInstrument(instrument: InstrumentIdentity): BoardInstrument {
+  return {
+    symbol: instrument.symbol,
+    name: instrument.name,
+    exchange: instrument.exchange,
+    asset_type: instrument.asset_type,
+  };
+}
+
+function createBoardId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `board-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 
 export function ComparisonPage() {
-  const [symbols, setSymbols] = useState<string[]>([]);
+  const [instruments, setInstruments] = useState<BoardInstrument[]>([]);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [comparison, setComparison] = useState<MarketComparison | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const requestRef = useRef<AbortController | null>(null);
+  const [customBoards, setCustomBoards] = useState<StoredBoardV1[]>([]);
+  const [storageIssue, setStorageIssue] = useState<BoardStorageIssue | null>(null);
+  const [isCreatingBoard, setIsCreatingBoard] = useState(false);
+  const [boardName, setBoardName] = useState("");
+  const boardStoreRef = useRef<ReturnType<typeof createBoardStore> | null>(null);
+  const requestRunnerRef = useRef<ReturnType<typeof createComparisonRequestRunner> | null>(null);
 
-  useEffect(() => () => requestRef.current?.abort(), []);
+  if (requestRunnerRef.current === null) {
+    requestRunnerRef.current = createComparisonRequestRunner(fetchMarketComparison);
+  }
+
+  const applyStoredState = (result: ReturnType<ReturnType<typeof createBoardStore>["load"]>) => {
+    setCustomBoards(result.boards);
+    setStorageIssue(result.issue);
+  };
+
+  useEffect(() => {
+    const store = createBoardStore(window.localStorage, createBoardId);
+    boardStoreRef.current = store;
+    applyStoredState(store.load());
+    return () => {
+      boardStoreRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => () => requestRunnerRef.current?.invalidate(), []);
 
   const invalidateResult = () => {
-    requestRef.current?.abort();
-    requestRef.current = null;
+    requestRunnerRef.current?.invalidate();
     setComparison(null);
     setIsLoading(false);
   };
 
-  const addSymbol = (symbol: string) => {
+  const addInstrument = (instrument: InstrumentIdentity) => {
     setError(null);
-    if (symbols.includes(symbol)) return;
-    if (symbols.length >= 5) {
-      setError("一次最多比较 5 个标的");
+    setNotice(null);
+    if (instruments.some((item) => item.symbol === instrument.symbol)) return;
+    if (instruments.length >= COMPARISON_MAX_INSTRUMENTS) {
+      setError(`一次最多比较 ${COMPARISON_MAX_INSTRUMENTS} 个标的`);
       return;
     }
     invalidateResult();
-    setSymbols([...symbols, symbol]);
+    setInstruments([...instruments, toBoardInstrument(instrument)]);
   };
 
-  const removeSymbol = (symbol: string) => {
+  const removeInstrument = (symbol: string) => {
     invalidateResult();
-    setSymbols((current) => current.filter((item) => item !== symbol));
+    setInstruments((current) => current.filter((item) => item.symbol !== symbol));
+    setError(null);
+    setNotice(null);
+  };
+
+  const loadBoard = (board: BuiltInBoard | StoredBoardV1) => {
+    try {
+      const selection = prepareBoardSelection(board.instruments);
+      invalidateResult();
+      setInstruments(selection);
+      setError(null);
+      setNotice(`已装载“${board.name}”的 ${selection.length} 个标的`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "板块成员无法装载");
+      setNotice(null);
+    }
+  };
+
+  const saveBoard = () => {
+    const store = boardStoreRef.current;
+    if (store === null) {
+      setError("浏览器本地存储尚未就绪");
+      return;
+    }
+    try {
+      const saved = store.save(boardName, instruments);
+      applyStoredState(store.load());
+      setBoardName("");
+      setIsCreatingBoard(false);
+      setError(null);
+      setNotice(`已保存自定义板块“${saved.name}”`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "保存自定义板块失败");
+    }
+  };
+
+  const deleteBoard = (id: string) => {
+    const store = boardStoreRef.current;
+    if (store === null) return;
+    store.remove(id);
+    applyStoredState(store.load());
+    setNotice("自定义板块已删除");
+    setError(null);
+  };
+
+  const clearBoardStorage = () => {
+    const store = boardStoreRef.current;
+    if (store === null) return;
+    store.clear();
+    applyStoredState(store.load());
+    setNotice("自定义板块存储已清除，可以重新保存");
     setError(null);
   };
 
@@ -60,8 +164,8 @@ export function ComparisonPage() {
   };
 
   const submit = () => {
-    if (symbols.length < 2) {
-      setError("请先选择至少 2 个标的");
+    if (instruments.length < COMPARISON_MIN_INSTRUMENTS) {
+      setError(`请先选择至少 ${COMPARISON_MIN_INSTRUMENTS} 个标的`);
       return;
     }
     if (start && end && start > end) {
@@ -69,26 +173,22 @@ export function ComparisonPage() {
       return;
     }
 
-    requestRef.current?.abort();
-    const controller = new AbortController();
-    requestRef.current = controller;
     setIsLoading(true);
     setComparison(null);
     setError(null);
-    fetchMarketComparison(
-      symbols,
+    setNotice(null);
+    requestRunnerRef.current?.run(
+      instruments.map((instrument) => instrument.symbol),
       { start: start || undefined, end: end || undefined },
-      controller.signal,
-    )
-      .then(setComparison)
-      .catch((reason: unknown) => {
-        if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setComparison(null);
-        setError(reason instanceof Error ? reason.message : "读取走势对比失败");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
-      });
+      {
+        success: setComparison,
+        failure: (reason: unknown) => {
+          setComparison(null);
+          setError(reason instanceof Error ? reason.message : "读取走势对比失败");
+        },
+        settled: () => setIsLoading(false),
+      },
+    );
   };
 
   return (
@@ -105,11 +205,56 @@ export function ComparisonPage() {
         </aside>
       </section>
 
-      <section className="comparison-controls" aria-label="走势对比条件">
+      <ComparisonBoardPicker
+        builtInBoards={BUILT_IN_BOARDS}
+        customBoards={customBoards}
+        storageIssue={storageIssue}
+        canSave={instruments.length >= COMPARISON_MIN_INSTRUMENTS}
+        isCreating={isCreatingBoard}
+        boardName={boardName}
+        onBoardNameChange={setBoardName}
+        onLoad={loadBoard}
+        onStartCreating={() => {
+          setIsCreatingBoard(true);
+          setError(null);
+          setNotice(null);
+        }}
+        onCancelCreating={() => {
+          setIsCreatingBoard(false);
+          setBoardName("");
+        }}
+        onSave={saveBoard}
+        onDelete={deleteBoard}
+        onClearStorage={clearBoardStorage}
+      />
+
+      <section className="comparison-selection" aria-label="已选择标的">
         <div className="comparison-controls__search">
-          <label>添加标的（2–5 个）</label>
-          <InstrumentSearch onSelect={addSymbol} variant="compact" actionLabel="添加" />
+          <label>添加标的（2–8 个）</label>
+          <InstrumentSearch onSelect={addInstrument} variant="compact" actionLabel="添加" />
         </div>
+        <div className="comparison-symbols">
+          {instruments.length === 0 && (
+            <span className="comparison-symbols__empty">尚未选择标的</span>
+          )}
+          {instruments.map((instrument) => (
+            <button
+              type="button"
+              key={instrument.symbol}
+              aria-label={`移除 ${instrument.name} ${instrument.symbol}`}
+              onClick={() => removeInstrument(instrument.symbol)}
+            >
+              <span>
+                <strong>{instrument.name}</strong>
+                <small>{instrument.symbol}</small>
+              </span>
+              <i aria-hidden="true">×</i>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="comparison-controls" aria-label="走势对比条件">
         <label>
           开始日期
           <input type="date" value={start} onChange={(event) => changeStart(event.target.value)} />
@@ -118,20 +263,16 @@ export function ComparisonPage() {
           结束日期
           <input type="date" value={end} onChange={(event) => changeEnd(event.target.value)} />
         </label>
-        <button type="button" onClick={submit} disabled={isLoading || symbols.length < 2}>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={isLoading || instruments.length < COMPARISON_MIN_INSTRUMENTS}
+        >
           {isLoading ? "计算中" : "开始对比"}
         </button>
       </section>
 
-      <div className="comparison-symbols" aria-label="已选择标的">
-        {symbols.length === 0 && <span className="comparison-symbols__empty">尚未选择标的</span>}
-        {symbols.map((symbol) => (
-          <button type="button" key={symbol} onClick={() => removeSymbol(symbol)}>
-            {symbol}<span aria-hidden="true">×</span>
-          </button>
-        ))}
-      </div>
-
+      {notice && <div className="comparison-message comparison-message--success">{notice}</div>}
       {error && <div className="comparison-message comparison-message--error">{error}</div>}
       {isLoading && <div className="comparison-message">正在读取并对齐历史日 K…</div>}
 

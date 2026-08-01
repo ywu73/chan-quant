@@ -46,7 +46,7 @@ describe("market comparison API client", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ detail: "comparison requires 2 to 5 symbols" }), {
+        new Response(JSON.stringify({ detail: "comparison requires 2 to 8 symbols" }), {
           status: 422,
           headers: { "Content-Type": "application/json" },
         }),
@@ -54,7 +54,7 @@ describe("market comparison API client", () => {
     );
 
     await expect(fetchMarketComparison(["000001.SZ"])).rejects.toThrow(
-      "读取走势对比失败（HTTP 422）：comparison requires 2 to 5 symbols",
+      "读取走势对比失败（HTTP 422）：comparison requires 2 to 8 symbols",
     );
   });
 });

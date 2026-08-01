@@ -5,7 +5,7 @@ import type { InstrumentIdentity } from "../types/instrument";
 
 
 interface InstrumentSearchProps {
-  onSelect: (symbol: string) => void;
+  onSelect: (instrument: InstrumentIdentity) => void;
   variant?: "landing" | "compact";
   actionLabel?: string;
 }
@@ -14,6 +14,19 @@ interface InstrumentSearchProps {
 export function normalizeDirectSymbol(value: string): string | null {
   const normalized = value.trim().toUpperCase();
   return /^\d{6}\.(SZ|SH)$/.test(normalized) ? normalized : null;
+}
+
+
+export function directInstrumentFromSymbol(value: string): InstrumentIdentity | null {
+  const symbol = normalizeDirectSymbol(value);
+  if (symbol === null) return null;
+  return {
+    symbol,
+    name: symbol,
+    exchange: symbol.endsWith(".SZ") ? "SZ" : "SH",
+    asset_type: "UNKNOWN",
+    price_precision: 2,
+  };
 }
 
 
@@ -29,15 +42,16 @@ export function InstrumentSearch({
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const directSymbol = normalizeDirectSymbol(query);
+  const directInstrument = directInstrumentFromSymbol(query);
   const normalizedQuery = query.trim();
 
-  const selectSymbol = (symbol: string) => {
+  const selectInstrument = (instrument: InstrumentIdentity) => {
     setQuery("");
     setItems([]);
     setIsLoading(false);
     setHasSearched(false);
     setError(null);
-    onSelect(symbol);
+    onSelect(instrument);
   };
 
   useEffect(() => {
@@ -81,10 +95,10 @@ export function InstrumentSearch({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (directSymbol) {
-      selectSymbol(directSymbol);
+    if (directInstrument) {
+      selectInstrument(directInstrument);
     } else if (!isLoading && items.length === 1) {
-      selectSymbol(items[0].symbol);
+      selectInstrument(items[0]);
     }
   };
 
@@ -121,20 +135,20 @@ export function InstrumentSearch({
       </form>
 
       <div className="instrument-search__popover">
-        {directSymbol && (
+        {directInstrument && (
           <div className="instrument-search__results" id={listId} role="listbox">
             <button
               type="button"
               role="option"
               aria-selected="false"
-              onClick={() => selectSymbol(directSymbol)}
+              onClick={() => selectInstrument(directInstrument)}
             >
               <span>
-                <strong>{directSymbol}</strong>
+                <strong>{directInstrument.symbol}</strong>
                 <small>规范代码 · 直接打开</small>
               </span>
               <span className="instrument-search__exchange">
-                {directSymbol.endsWith(".SZ") ? "深市" : "沪市"}
+                {directInstrument.exchange === "SZ" ? "深市" : "沪市"}
               </span>
             </button>
           </div>
@@ -147,7 +161,7 @@ export function InstrumentSearch({
                 role="option"
                 aria-selected="false"
                 key={item.symbol}
-                onClick={() => selectSymbol(item.symbol)}
+                onClick={() => selectInstrument(item)}
               >
                 <span>
                   <strong>{item.name}</strong>

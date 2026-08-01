@@ -52,7 +52,7 @@ function LandingPage({ onSelect }: { onSelect: (symbol: string) => void }) {
         <p className="landing-card__intro">
           搜索沪深股票、ETF 或指数的代码与名称，查看可追溯的趋势状态、结构事件与研究证据。
         </p>
-        <InstrumentSearch onSelect={onSelect} />
+        <InstrumentSearch onSelect={(instrument) => onSelect(instrument.symbol)} />
         <div className="landing-card__examples" aria-label="搜索示例">
           <span>股票：600519.SH</span>
           <span>ETF：513100.SH</span>
