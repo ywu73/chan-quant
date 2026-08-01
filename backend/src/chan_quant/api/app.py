@@ -184,6 +184,19 @@ def instrument_search(
 
 
 @app.get(
+    "/api/v1/instruments/{symbol}",
+    response_model=InstrumentIdentity,
+)
+def instrument_identity(symbol: str) -> InstrumentIdentity:
+    try:
+        return fetch_sina_instrument(symbol)
+    except SinaUpstreamError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except SinaDataError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get(
     "/api/v1/market-comparison",
     response_model=MarketComparison,
 )

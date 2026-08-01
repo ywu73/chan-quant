@@ -5,10 +5,8 @@ import {
   BUILT_IN_BOARDS,
   COMPARISON_MAX_INSTRUMENTS,
   COMPARISON_MIN_INSTRUMENTS,
-  createBoardStore,
   prepareBoardSelection,
   type BoardInstrument,
-  type BoardStorageIssue,
   type BuiltInBoard,
   type StoredBoardV1,
 } from "../comparisonBoards";
@@ -16,6 +14,7 @@ import { createComparisonRequestRunner } from "../comparisonRequest";
 import { formatPercent } from "../format";
 import type { MarketComparison } from "../types/comparison";
 import type { InstrumentIdentity } from "../types/instrument";
+import { useComparisonBoards } from "../useComparisonBoards";
 import { ComparisonBoardPicker } from "./ComparisonBoardPicker";
 import { ComparisonChart } from "./ComparisonChart";
 import { InstrumentSearch } from "./InstrumentSearch";
@@ -31,16 +30,9 @@ function toBoardInstrument(instrument: InstrumentIdentity): BoardInstrument {
     name: instrument.name,
     exchange: instrument.exchange,
     asset_type: instrument.asset_type,
+    price_precision: instrument.price_precision,
   };
 }
-
-function createBoardId(): string {
-  if (typeof globalThis.crypto?.randomUUID === "function") {
-    return globalThis.crypto.randomUUID();
-  }
-  return `board-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 
 export function ComparisonPage() {
   const [instruments, setInstruments] = useState<BoardInstrument[]>([]);
@@ -50,30 +42,14 @@ export function ComparisonPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [customBoards, setCustomBoards] = useState<StoredBoardV1[]>([]);
-  const [storageIssue, setStorageIssue] = useState<BoardStorageIssue | null>(null);
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [boardName, setBoardName] = useState("");
-  const boardStoreRef = useRef<ReturnType<typeof createBoardStore> | null>(null);
   const requestRunnerRef = useRef<ReturnType<typeof createComparisonRequestRunner> | null>(null);
+  const boardState = useComparisonBoards();
 
   if (requestRunnerRef.current === null) {
     requestRunnerRef.current = createComparisonRequestRunner(fetchMarketComparison);
   }
-
-  const applyStoredState = (result: ReturnType<ReturnType<typeof createBoardStore>["load"]>) => {
-    setCustomBoards(result.boards);
-    setStorageIssue(result.issue);
-  };
-
-  useEffect(() => {
-    const store = createBoardStore(window.localStorage, createBoardId);
-    boardStoreRef.current = store;
-    applyStoredState(store.load());
-    return () => {
-      boardStoreRef.current = null;
-    };
-  }, []);
 
   useEffect(() => () => requestRunnerRef.current?.invalidate(), []);
 
@@ -116,14 +92,8 @@ export function ComparisonPage() {
   };
 
   const saveBoard = () => {
-    const store = boardStoreRef.current;
-    if (store === null) {
-      setError("浏览器本地存储尚未就绪");
-      return;
-    }
     try {
-      const saved = store.save(boardName, instruments);
-      applyStoredState(store.load());
+      const saved = boardState.save(boardName, instruments);
       setBoardName("");
       setIsCreatingBoard(false);
       setError(null);
@@ -134,21 +104,23 @@ export function ComparisonPage() {
   };
 
   const deleteBoard = (id: string) => {
-    const store = boardStoreRef.current;
-    if (store === null) return;
-    store.remove(id);
-    applyStoredState(store.load());
-    setNotice("自定义板块已删除");
-    setError(null);
+    try {
+      boardState.remove(id);
+      setNotice("自定义板块已删除");
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "删除自定义板块失败");
+    }
   };
 
   const clearBoardStorage = () => {
-    const store = boardStoreRef.current;
-    if (store === null) return;
-    store.clear();
-    applyStoredState(store.load());
-    setNotice("自定义板块存储已清除，可以重新保存");
-    setError(null);
+    try {
+      boardState.clear();
+      setNotice("自定义板块存储已清除，可以重新保存");
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "清除自定义板块存储失败");
+    }
   };
 
   const changeStart = (value: string) => {
@@ -207,8 +179,8 @@ export function ComparisonPage() {
 
       <ComparisonBoardPicker
         builtInBoards={BUILT_IN_BOARDS}
-        customBoards={customBoards}
-        storageIssue={storageIssue}
+        customBoards={boardState.customBoards}
+        storageIssue={boardState.storageIssue}
         canSave={instruments.length >= COMPARISON_MIN_INSTRUMENTS}
         isCreating={isCreatingBoard}
         boardName={boardName}

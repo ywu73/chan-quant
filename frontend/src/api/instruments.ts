@@ -1,4 +1,27 @@
-import type { InstrumentSearchResponse } from "../types/instrument";
+import type { InstrumentIdentity, InstrumentSearchResponse } from "../types/instrument";
+
+
+async function instrumentFailure(response: Response): Promise<Error> {
+  const payload = (await response.json().catch(() => null)) as {
+    detail?: unknown;
+  } | null;
+  const detail = typeof payload?.detail === "string" ? `：${payload.detail}` : "";
+  return new Error(`证券搜索不可用（HTTP ${response.status}）${detail}`);
+}
+
+
+export async function resolveInstrument(
+  symbol: string,
+  signal?: AbortSignal,
+): Promise<InstrumentIdentity> {
+  const canonical = symbol.trim().toUpperCase();
+  const response = await fetch(
+    `/api/v1/instruments/${encodeURIComponent(canonical)}`,
+    { signal },
+  );
+  if (!response.ok) throw await instrumentFailure(response);
+  return response.json() as Promise<InstrumentIdentity>;
+}
 
 
 export async function searchInstruments(
@@ -12,11 +35,7 @@ export async function searchInstruments(
     { signal },
   );
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      detail?: unknown;
-    } | null;
-    const detail = typeof payload?.detail === "string" ? `：${payload.detail}` : "";
-    throw new Error(`证券搜索不可用（HTTP ${response.status}）${detail}`);
+    throw await instrumentFailure(response);
   }
   return response.json() as Promise<InstrumentSearchResponse>;
 }

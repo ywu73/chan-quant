@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useId, useState } from "react";
+import { FormEvent, useEffect, useId, useRef, useState } from "react";
 
-import { searchInstruments } from "../api/instruments";
+import { resolveInstrument, searchInstruments } from "../api/instruments";
 import type { InstrumentIdentity } from "../types/instrument";
 
 
@@ -17,15 +17,18 @@ export function normalizeDirectSymbol(value: string): string | null {
 }
 
 
-export function directInstrumentFromSymbol(value: string): InstrumentIdentity | null {
+interface DirectInstrumentCandidate {
+  symbol: string;
+  exchange: "SZ" | "SH";
+}
+
+
+export function directInstrumentFromSymbol(value: string): DirectInstrumentCandidate | null {
   const symbol = normalizeDirectSymbol(value);
   if (symbol === null) return null;
   return {
     symbol,
-    name: symbol,
     exchange: symbol.endsWith(".SZ") ? "SZ" : "SH",
-    asset_type: "UNKNOWN",
-    price_precision: 2,
   };
 }
 
@@ -43,9 +46,12 @@ export function InstrumentSearch({
   const [error, setError] = useState<string | null>(null);
   const directSymbol = normalizeDirectSymbol(query);
   const directInstrument = directInstrumentFromSymbol(query);
+  const directResolutionRef = useRef<AbortController | null>(null);
   const normalizedQuery = query.trim();
 
   const selectInstrument = (instrument: InstrumentIdentity) => {
+    directResolutionRef.current?.abort();
+    directResolutionRef.current = null;
     setQuery("");
     setItems([]);
     setIsLoading(false);
@@ -53,6 +59,25 @@ export function InstrumentSearch({
     setError(null);
     onSelect(instrument);
   };
+
+  const resolveDirectSelection = (candidate: DirectInstrumentCandidate) => {
+    directResolutionRef.current?.abort();
+    const controller = new AbortController();
+    directResolutionRef.current = controller;
+    setIsLoading(true);
+    setError(null);
+    resolveInstrument(candidate.symbol, controller.signal)
+      .then(selectInstrument)
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "无法确认规范证券身份");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
+  };
+
+  useEffect(() => () => directResolutionRef.current?.abort(), []);
 
   useEffect(() => {
     if (!normalizedQuery || directSymbol) {
@@ -96,13 +121,13 @@ export function InstrumentSearch({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (directInstrument) {
-      selectInstrument(directInstrument);
+      resolveDirectSelection(directInstrument);
     } else if (!isLoading && items.length === 1) {
       selectInstrument(items[0]);
     }
   };
 
-  const hasResults = directSymbol !== null || items.length > 0;
+  const hasResults = directInstrument !== null || items.length > 0;
   const statusId = `${inputId}-status`;
   const listId = `${inputId}-results`;
 
@@ -128,7 +153,7 @@ export function InstrumentSearch({
         />
         <button
           type="submit"
-          disabled={!directSymbol && (isLoading || items.length !== 1)}
+          disabled={isLoading || (!directInstrument && items.length !== 1)}
         >
           {actionLabel ?? (variant === "landing" ? "开始研究" : "切换")}
         </button>
@@ -141,7 +166,8 @@ export function InstrumentSearch({
               type="button"
               role="option"
               aria-selected="false"
-              onClick={() => selectInstrument(directInstrument)}
+              disabled={isLoading}
+              onClick={() => resolveDirectSelection(directInstrument)}
             >
               <span>
                 <strong>{directInstrument.symbol}</strong>

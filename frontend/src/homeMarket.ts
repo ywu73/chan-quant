@@ -1,4 +1,5 @@
 import type { QuoteSnapshot } from "./types/quote";
+import { CN_BROAD_INDEX_BY_SYMBOL } from "./marketInstruments";
 
 
 export interface MarketInstrument {
@@ -15,13 +16,21 @@ export interface MarketQuoteResult {
 }
 
 
-export const HOME_MARKET_INSTRUMENTS: MarketInstrument[] = [
-  { symbol: "000001.SH", displayName: "上证指数", color: "red" },
-  { symbol: "000300.SH", displayName: "沪深300", color: "blue" },
-  { symbol: "000016.SH", displayName: "上证50", color: "orange" },
-  { symbol: "399006.SZ", displayName: "创业板指", color: "green" },
-  { symbol: "000688.SH", displayName: "科创50", color: "purple" },
+const HOME_MARKET_COLORS: Array<[string, MarketInstrument["color"]]> = [
+  ["000001.SH", "red"],
+  ["000300.SH", "blue"],
+  ["000016.SH", "orange"],
+  ["399006.SZ", "green"],
+  ["000688.SH", "purple"],
 ];
+
+export const HOME_MARKET_INSTRUMENTS: MarketInstrument[] = HOME_MARKET_COLORS.map(
+  ([symbol, color]) => {
+    const identity = CN_BROAD_INDEX_BY_SYMBOL.get(symbol);
+    if (!identity) throw new Error(`missing shared market identity for ${symbol}`);
+    return { symbol, displayName: identity.name, color };
+  },
+);
 
 
 export async function loadMarketQuotes(

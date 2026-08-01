@@ -37,6 +37,7 @@ export function ComparisonBoardPicker({
   onDelete,
   onClearStorage,
 }: ComparisonBoardPickerProps) {
+  const storageAvailable = storageIssue?.code !== "STORAGE_UNAVAILABLE";
   return (
     <section className="comparison-boards" aria-label="板块速选">
       <div className="comparison-section-heading">
@@ -50,7 +51,9 @@ export function ComparisonBoardPicker({
       {storageIssue && (
         <div className="comparison-board-issue" role="status">
           <span>{storageIssue.message}</span>
-          <button type="button" onClick={onClearStorage}>清除损坏存储</button>
+          {storageIssue.code !== "STORAGE_UNAVAILABLE" && (
+            <button type="button" onClick={onClearStorage}>清除损坏存储</button>
+          )}
         </div>
       )}
 
@@ -63,7 +66,9 @@ export function ComparisonBoardPicker({
                 <small>{board.instruments.length} 个标的</small>
               </span>
               <span>{board.description}</span>
-              <small>版本 {board.version} · 确认于 {board.confirmed_at}</small>
+              <small>
+                版本 {board.version} · 确认于 {board.confirmed_at} · 来源 {board.identity_source}
+              </small>
             </button>
           </article>
         ))}
@@ -91,9 +96,17 @@ export function ComparisonBoardPicker({
 
         <div className="comparison-board-create">
           {!isCreating ? (
-            <button type="button" disabled={!canSave} onClick={onStartCreating}>
+            <button
+              type="button"
+              disabled={!canSave || !storageAvailable}
+              onClick={onStartCreating}
+            >
               <strong>保存当前组合</strong>
-              <span>{canSave ? "创建本地自定义板块" : "选择至少 2 个标的后可保存"}</span>
+              <span>
+                {!storageAvailable
+                  ? "当前浏览器本地存储不可用"
+                  : canSave ? "创建本地自定义板块" : "选择至少 2 个标的后可保存"}
+              </span>
             </button>
           ) : (
             <div className="comparison-board-create__form">

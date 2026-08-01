@@ -17,13 +17,10 @@ describe("instrument navigation", () => {
     expect(normalizeDirectSymbol("430047.BJ")).toBeNull();
   });
 
-  it("preserves a complete conservative identity for direct canonical input", () => {
+  it("keeps direct canonical input as unresolved code and exchange only", () => {
     expect(directInstrumentFromSymbol(" 000001.sh ")).toEqual({
       symbol: "000001.SH",
-      name: "000001.SH",
       exchange: "SH",
-      asset_type: "UNKNOWN",
-      price_precision: 2,
     });
   });
 

@@ -29,15 +29,16 @@ describe("comparison boards", () => {
         version: "2026-08-01",
         description: "覆盖沪深主要宽基与代表性指数；成员代码和名称于 2026-08-01 通过现有证券搜索适配器逐项确认。",
         confirmed_at: "2026-08-01",
+        identity_source: "sina-undocumented-suggest",
         instruments: [
-          { symbol: "000001.SH", name: "上证指数", exchange: "SH", asset_type: "UNKNOWN" },
-          { symbol: "399001.SZ", name: "深证成指", exchange: "SZ", asset_type: "UNKNOWN" },
-          { symbol: "399006.SZ", name: "创业板指", exchange: "SZ", asset_type: "UNKNOWN" },
-          { symbol: "000300.SH", name: "沪深300", exchange: "SH", asset_type: "UNKNOWN" },
-          { symbol: "000905.SH", name: "中证500", exchange: "SH", asset_type: "UNKNOWN" },
-          { symbol: "000852.SH", name: "中证1000", exchange: "SH", asset_type: "UNKNOWN" },
-          { symbol: "000688.SH", name: "科创50", exchange: "SH", asset_type: "UNKNOWN" },
-          { symbol: "000016.SH", name: "上证50", exchange: "SH", asset_type: "UNKNOWN" },
+          { symbol: "000001.SH", name: "上证指数", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+          { symbol: "399001.SZ", name: "深证成指", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+          { symbol: "399006.SZ", name: "创业板指", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+          { symbol: "000300.SH", name: "沪深300", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+          { symbol: "000905.SH", name: "中证500", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+          { symbol: "000852.SH", name: "中证1000", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+          { symbol: "000688.SH", name: "科创50", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+          { symbol: "000016.SH", name: "上证50", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
         ],
       },
     ]);
@@ -45,8 +46,9 @@ describe("comparison boards", () => {
 
   it("isolates malformed storage and exposes a recoverable issue", () => {
     const storage = createMemoryStorage({ [BOARD_STORAGE_KEY]: "{" });
+    const store = createBoardStore(storage, () => "unused");
 
-    const result = createBoardStore(storage, () => "unused").load();
+    const result = store.load();
 
     expect(result).toEqual({
       boards: [],
@@ -55,6 +57,9 @@ describe("comparison boards", () => {
         message: "自定义板块存储已损坏，已隔离且未加载。可清除后重新保存。",
       },
     });
+    expect(() => store.save("不能覆盖", BUILT_IN_BOARDS[0].instruments.slice(0, 2)))
+      .toThrow("自定义板块存储已损坏，请先清除后再保存");
+    expect(storage.getItem(BOARD_STORAGE_KEY)).toBe("{");
   });
 
   it("keeps valid v1 boards while rejecting unknown stored versions", () => {
@@ -79,6 +84,26 @@ describe("comparison boards", () => {
 
     expect(result.boards.map((board) => board.id)).toEqual(["valid-board"]);
     expect(result.issue?.code).toBe("UNSUPPORTED_VERSION");
+  });
+
+  it("preserves unknown-version records when saving a new v1 board", () => {
+    const futureBoard = {
+      version: 2,
+      id: "future-board",
+      name: "未来版本",
+      instruments: BUILT_IN_BOARDS[0].instruments.slice(0, 2),
+      future_field: "must survive",
+    };
+    const storage = createMemoryStorage({
+      [BOARD_STORAGE_KEY]: JSON.stringify([futureBoard]),
+    });
+    const store = createBoardStore(storage, () => "new-board");
+
+    store.save("新板块", BUILT_IN_BOARDS[0].instruments.slice(0, 2));
+
+    expect(JSON.parse(storage.getItem(BOARD_STORAGE_KEY) ?? "[]")[0]).toEqual(futureBoard);
+    expect(store.load().boards.map((board) => board.id)).toEqual(["new-board"]);
+    expect(store.load().issue?.code).toBe("UNSUPPORTED_VERSION");
   });
 
   it("saves a trimmed board with full canonical identities and removes duplicate symbols", () => {
@@ -133,7 +158,7 @@ describe("comparison boards", () => {
     ]);
     expect(() => prepareBoardSelection([
       ...members,
-      { symbol: "100001.SZ", name: "测试标的", exchange: "SZ", asset_type: "UNKNOWN" },
+      { symbol: "100001.SZ", name: "测试标的", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
     ])).toThrow("板块必须包含 2–8 个不同的规范标的");
   });
 

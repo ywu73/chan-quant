@@ -1,4 +1,5 @@
 import type { InstrumentIdentity } from "./types/instrument";
+import { CN_BROAD_INDEX_CATALOG } from "./marketInstruments";
 
 
 export const COMPARISON_MIN_INSTRUMENTS = 2;
@@ -7,7 +8,7 @@ export const BOARD_STORAGE_KEY = "chan-quant.comparison-boards.v1";
 
 export type BoardInstrument = Pick<
   InstrumentIdentity,
-  "symbol" | "name" | "exchange" | "asset_type"
+  "symbol" | "name" | "exchange" | "asset_type" | "price_precision"
 >;
 
 export interface BuiltInBoard {
@@ -16,6 +17,7 @@ export interface BuiltInBoard {
   version: string;
   description: string;
   confirmed_at: string;
+  identity_source: "sina-undocumented-suggest";
   instruments: BoardInstrument[];
 }
 
@@ -27,7 +29,7 @@ export interface StoredBoardV1 {
 }
 
 export interface BoardStorageIssue {
-  code: "CORRUPTED_STORAGE" | "UNSUPPORTED_VERSION" | "INVALID_ENTRIES";
+  code: "CORRUPTED_STORAGE" | "UNSUPPORTED_VERSION" | "INVALID_ENTRIES" | "STORAGE_UNAVAILABLE";
   message: string;
 }
 
@@ -52,11 +54,21 @@ function normalizeInstrument(value: unknown): BoardInstrument | null {
   const name = typeof value.name === "string" ? value.name.trim() : "";
   const exchange = value.exchange;
   const assetType = value.asset_type;
+  const pricePrecision = value.price_precision;
   if (!/^\d{6}\.(SZ|SH)$/.test(symbol) || !name) return null;
   if (exchange !== "SZ" && exchange !== "SH") return null;
   if (!symbol.endsWith(`.${exchange}`)) return null;
   if (assetType !== "ETF" && assetType !== "UNKNOWN") return null;
-  return { symbol, name, exchange, asset_type: assetType };
+  if (!Number.isInteger(pricePrecision) || Number(pricePrecision) < 0 || Number(pricePrecision) > 6) {
+    return null;
+  }
+  return {
+    symbol,
+    name,
+    exchange,
+    asset_type: assetType,
+    price_precision: Number(pricePrecision),
+  };
 }
 
 function normalizeInstruments(value: unknown): BoardInstrument[] | null {
@@ -99,27 +111,38 @@ export const BUILT_IN_BOARDS: BuiltInBoard[] = [
     version: "2026-08-01",
     description: "覆盖沪深主要宽基与代表性指数；成员代码和名称于 2026-08-01 通过现有证券搜索适配器逐项确认。",
     confirmed_at: "2026-08-01",
-    instruments: [
-      { symbol: "000001.SH", name: "上证指数", exchange: "SH", asset_type: "UNKNOWN" },
-      { symbol: "399001.SZ", name: "深证成指", exchange: "SZ", asset_type: "UNKNOWN" },
-      { symbol: "399006.SZ", name: "创业板指", exchange: "SZ", asset_type: "UNKNOWN" },
-      { symbol: "000300.SH", name: "沪深300", exchange: "SH", asset_type: "UNKNOWN" },
-      { symbol: "000905.SH", name: "中证500", exchange: "SH", asset_type: "UNKNOWN" },
-      { symbol: "000852.SH", name: "中证1000", exchange: "SH", asset_type: "UNKNOWN" },
-      { symbol: "000688.SH", name: "科创50", exchange: "SH", asset_type: "UNKNOWN" },
-      { symbol: "000016.SH", name: "上证50", exchange: "SH", asset_type: "UNKNOWN" },
-    ],
+    identity_source: "sina-undocumented-suggest",
+    instruments: CN_BROAD_INDEX_CATALOG.map(({
+      symbol,
+      name,
+      exchange,
+      asset_type,
+      price_precision,
+    }) => ({ symbol, name, exchange, asset_type, price_precision })),
   },
 ];
 
 
 export function createBoardStore(storage: BoardStorage, createId: () => string) {
-  const load = (): LoadBoardsResult => {
+  const readStoredValues = (): unknown[] => {
     const raw = storage.getItem(BOARD_STORAGE_KEY);
-    if (raw === null) return { boards: [], issue: null };
+    if (raw === null) return [];
+    const value: unknown = JSON.parse(raw);
+    if (!Array.isArray(value)) throw new TypeError("stored boards must be an array");
+    return value;
+  };
+
+  const readStoredValuesForWrite = (): unknown[] => {
     try {
-      const value: unknown = JSON.parse(raw);
-      if (!Array.isArray(value)) throw new TypeError("stored boards must be an array");
+      return readStoredValues();
+    } catch {
+      throw new Error("自定义板块存储已损坏，请先清除后再保存");
+    }
+  };
+
+  const load = (): LoadBoardsResult => {
+    try {
+      const value = readStoredValues();
       const boards: StoredBoardV1[] = [];
       const seenIds = new Set<string>();
       let hasUnsupportedVersion = false;
@@ -174,7 +197,7 @@ export function createBoardStore(storage: BoardStorage, createId: () => string) 
       const instruments = normalizeInstruments(instrumentValues);
       if (!name) throw new Error("板块名称不能为空");
       if (instruments === null) throw new Error("自定义板块必须包含 2–8 个不同的规范标的");
-      const current = load().boards;
+      const current = readStoredValuesForWrite();
       const board: StoredBoardV1 = {
         version: 1,
         id: createId(),
@@ -185,7 +208,9 @@ export function createBoardStore(storage: BoardStorage, createId: () => string) 
       return board;
     },
     remove(id: string): void {
-      const remaining = load().boards.filter((board) => board.id !== id);
+      const remaining = readStoredValuesForWrite().filter((candidate) => (
+        !isRecord(candidate) || candidate.version !== 1 || candidate.id !== id
+      ));
       storage.setItem(BOARD_STORAGE_KEY, JSON.stringify(remaining));
     },
     clear(): void {

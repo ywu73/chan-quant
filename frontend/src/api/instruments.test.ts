@@ -1,12 +1,36 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { searchInstruments } from "./instruments";
+import { resolveInstrument, searchInstruments } from "./instruments";
 
 
 afterEach(() => vi.unstubAllGlobals());
 
 
 describe("instrument search API client", () => {
+  it("resolves a canonical symbol through the backend identity contract", async () => {
+    const identity = {
+      symbol: "513100.SH",
+      name: "纳指ETF国泰",
+      exchange: "SH" as const,
+      asset_type: "ETF" as const,
+      price_precision: 3,
+    };
+    const request = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(identity), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", request);
+    const controller = new AbortController();
+
+    await expect(resolveInstrument(" 513100.sh ", controller.signal)).resolves.toEqual(identity);
+    expect(request).toHaveBeenCalledWith(
+      "/api/v1/instruments/513100.SH",
+      { signal: controller.signal },
+    );
+  });
+
   it("encodes the query and forwards cancellation", async () => {
     const payload = {
       query: "平安 银行",

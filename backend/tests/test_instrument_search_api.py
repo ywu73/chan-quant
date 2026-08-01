@@ -44,6 +44,27 @@ def test_instrument_search_endpoint_returns_normalized_results(monkeypatch) -> N
     }
 
 
+def test_instrument_identity_endpoint_resolves_canonical_symbol(monkeypatch) -> None:
+    expected = InstrumentIdentity(
+        symbol="513100.SH",
+        name="纳指ETF国泰",
+        exchange="SH",
+        asset_type="ETF",
+        price_precision=3,
+    )
+
+    def fake_fetch(symbol: str) -> InstrumentIdentity:
+        assert symbol == "513100.sh"
+        return expected
+
+    monkeypatch.setattr("chan_quant.api.app.fetch_sina_instrument", fake_fetch)
+
+    response = TestClient(app).get("/api/v1/instruments/513100.sh")
+
+    assert response.status_code == 200
+    assert response.json() == expected.model_dump()
+
+
 @pytest.mark.parametrize(
     ("error", "status_code"),
     [

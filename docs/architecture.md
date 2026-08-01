@@ -13,7 +13,7 @@
   -> 独立 Quote API ──────────────────────┘
 
 新浪未文档化证券建议 -> InstrumentIdentity
-  -> 独立 Search API -> 初始页 / Dashboard 标的切换
+  -> 独立 Search / Identity API -> 初始页 / Dashboard 标的切换 / 比较板块身份
 
 新浪未文档化 K 线端点 -> ComparisonInput[]
   -> 共同覆盖窗口与交易日并集对齐
@@ -36,6 +36,9 @@
 - `backend/src/chan_quant/api`：HTTP 适配层，不包含策略规则。
 - `frontend/src/api`：Dashboard 与 Quote 快照获取及错误处理。
 - `frontend/src/components/InstrumentSearch.tsx`：标的输入、搜索建议和选择交互，不计算策略规则。
+- `frontend/src/marketInstruments.ts`：经过现有身份适配器现场确认的共享市场标的目录；保留提供方无法确认的 `UNKNOWN` 资产类别。
+- `frontend/src/comparisonBoards.ts`：板块身份、数量、版本化存储解析、未知版本保留和损坏数据隔离。
+- `frontend/src/useComparisonBoards.ts`：浏览器本地板块存储的生命周期与变更编排，展示组件不直接访问 `localStorage`。
 - `frontend/src/quotePolling.ts`：8 秒低频轮询、页面可见性暂停和生命周期清理。
 - `frontend/src/components`：纯展示组件和图表。
 
@@ -47,7 +50,7 @@
 
 新浪端点不允许前端直连。后端负责请求和 GB18030 兼容解码：K 线 JSON 归一化为 `MarketBar`，实时赋值语句归一化为 `QuoteSnapshot`。两条链路只在页面展示层并列，Quote 模块不接受 `MarketBar`、不调用策略引擎，也不写回 Dashboard。外部响应中的均线字段和盘中价格都不参与策略计算。
 
-标的名称搜索同样只允许后端访问新浪未文档化建议端点。适配器在同一个深模块中完成类型过滤、代码规范化、精确身份解析和价格精度选择：现场类别 `203` 标记为 `ETF` 并使用三位价格，类别 `11` 因可能包含股票与指数别名而保留为 `UNKNOWN`。搜索结果只决定用户选择的 Dashboard URL，不生成信号、推荐或全市场扫描结论。元数据查询失败时，Dashboard 回退显示请求中的规范代码和未知口径，不能沿用其他标的的全局名称。
+标的名称搜索和规范代码身份解析同样只允许后端访问新浪未文档化建议端点。适配器在同一个深模块中完成类型过滤、代码规范化、精确身份解析和价格精度选择：现场类别 `203` 标记为 `ETF` 并使用三位价格，类别 `11` 因可能包含股票与指数别名而保留为 `UNKNOWN`。搜索结果只决定用户选择的 Dashboard URL 或比较组合身份，不生成信号、推荐或全市场扫描结论。元数据查询失败时，Dashboard 回退显示请求中的规范代码和未知口径；自定义板块则拒绝把前端猜测的名称、类型或精度保存为稳定身份。
 
 Dashboard 和 Quote 展示以 `InstrumentIdentity` 为稳定身份。Quote 响应中的名称保留为上游原始字段，但不能覆盖 Dashboard 主标题，因为新浪实时接口可能对 ETF 返回简称。ETF 日 K 可以进入现有策略计算，但使用 `adjustment=unspecified` 和独立风险提示；三只股票样本的复权观察不得外推到 ETF。
 
