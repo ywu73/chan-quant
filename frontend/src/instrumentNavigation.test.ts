@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { symbolFromSearch } from "./App";
+import { appViewFromLocation, symbolFromSearch } from "./App";
 import { normalizeDirectSymbol } from "./components/InstrumentSearch";
 
 
@@ -22,5 +22,22 @@ describe("instrument navigation", () => {
 
   it("normalizes a canonical URL symbol", () => {
     expect(symbolFromSearch("?symbol=000001.sz")).toBe("000001.SZ");
+  });
+
+  it("uses the root as the market overview and keeps search on its manual path", () => {
+    expect(appViewFromLocation("/", "")).toEqual({ name: "home" });
+    expect(appViewFromLocation("/search", "")).toEqual({ name: "search" });
+    expect(appViewFromLocation("/search/", "")).toEqual({ name: "search" });
+  });
+
+  it("opens a canonical dashboard symbol regardless of the entry path", () => {
+    expect(appViewFromLocation("/", "?symbol=600519.SH")).toEqual({
+      name: "dashboard",
+      symbol: "600519.SH",
+    });
+    expect(appViewFromLocation("/search", "?symbol=000001.sz")).toEqual({
+      name: "dashboard",
+      symbol: "000001.SZ",
+    });
   });
 });

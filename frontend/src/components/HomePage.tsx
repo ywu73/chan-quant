@@ -1,0 +1,278 @@
+import { useCallback, useEffect, useState } from "react";
+
+import { fetchQuote } from "../api/quote";
+import { formatPercent, formatQuoteTime, formatVolume } from "../format";
+import {
+  HOME_MARKET_INSTRUMENTS,
+  intradayRangePosition,
+  loadMarketQuotes,
+  type MarketQuoteResult,
+} from "../homeMarket";
+import type { QuoteStatus } from "../types/quote";
+import { InstrumentSearch } from "./InstrumentSearch";
+
+
+const STATUS_LABEL: Record<QuoteStatus, string> = {
+  LIVE: "实时",
+  DELAYED: "延迟",
+  CLOSED: "已收盘",
+};
+
+
+const RESEARCH_MODULES = [
+  {
+    code: "01",
+    title: "结构研究",
+    detail: "严格三 K 分型、简化笔与原始结构证据",
+    meta: "当前可用",
+    tone: "blue",
+  },
+  {
+    code: "02",
+    title: "趋势状态",
+    detail: "均线、Donchian 通道与多周期状态",
+    meta: "当前可用",
+    tone: "green",
+  },
+  {
+    code: "03",
+    title: "候选信号",
+    detail: "规则版本、过滤原因与最早可执行时间",
+    meta: "当前可用",
+    tone: "orange",
+  },
+  {
+    code: "04",
+    title: "事件研究",
+    detail: "5 / 10 / 20 个交易日的历史事件观察",
+    meta: "当前可用",
+    tone: "purple",
+  },
+  {
+    code: "05",
+    title: "走势对比",
+    detail: "多标的归一化曲线、收益与回撤比较",
+    meta: "规划中",
+    tone: "neutral",
+  },
+  {
+    code: "06",
+    title: "市场温度",
+    detail: "全市场涨跌分布与数据口径审计",
+    meta: "规划中",
+    tone: "neutral",
+  },
+] as const;
+
+
+function formatIndexValue(value: number): string {
+  return new Intl.NumberFormat("zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+
+function MarketCard({ result }: { result: MarketQuoteResult }) {
+  const { instrument, quote, error } = result;
+  const direction = quote && quote.change < 0 ? "down" : "up";
+  const position = quote ? intradayRangePosition(quote) : 50;
+
+  return (
+    <article className={`home-market-card home-market-card--${instrument.color}`}>
+      <div className="home-market-card__heading">
+        <div>
+          <span className="home-market-card__dot" aria-hidden="true" />
+          <strong>{quote?.name || instrument.displayName}</strong>
+          <small>{instrument.symbol}</small>
+        </div>
+        <span className={`home-market-card__status${error ? " home-market-card__status--error" : ""}`}>
+          {error ? "不可用" : quote ? STATUS_LABEL[quote.status] : "连接中"}
+        </span>
+      </div>
+
+      {quote && !error ? (
+        <>
+          <div className="home-market-card__price">
+            <strong>{formatIndexValue(quote.last_price)}</strong>
+            <span className={`home-market-card__change home-market-card__change--${direction}`}>
+              {quote.change >= 0 ? "+" : ""}{formatIndexValue(quote.change)}
+              <b>{formatPercent(quote.change_percent, 2)}</b>
+            </span>
+          </div>
+          <div className="home-market-card__range" aria-label="日内价格区间">
+            <span className="home-market-card__range-fill" style={{ width: `${position}%` }} />
+            <span className="home-market-card__range-point" style={{ left: `${position}%` }} />
+          </div>
+          <dl className="home-market-card__facts">
+            <div><dt>今开</dt><dd>{formatIndexValue(quote.open)}</dd></div>
+            <div><dt>最高</dt><dd>{formatIndexValue(quote.high)}</dd></div>
+            <div><dt>最低</dt><dd>{formatIndexValue(quote.low)}</dd></div>
+            <div><dt>成交量</dt><dd>{formatVolume(quote.volume)}</dd></div>
+          </dl>
+          <p className="home-market-card__time">行情时间 {formatQuoteTime(quote.quote_at)}</p>
+        </>
+      ) : (
+        <div className={`home-market-card__empty${error ? " home-market-card__empty--error" : ""}`}>
+          {error ? "单项行情读取失败，不影响其他指数快照。" : "正在读取独立实时快照…"}
+        </div>
+      )}
+    </article>
+  );
+}
+
+
+export function HomePage({ onSelect }: { onSelect: (symbol: string) => void }) {
+  const [marketResults, setMarketResults] = useState<MarketQuoteResult[]>(
+    HOME_MARKET_INSTRUMENTS.map((instrument) => ({ instrument, quote: null, error: null })),
+  );
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(true);
+
+  const refresh = useCallback(() => setRefreshVersion((value) => value + 1), []);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setIsRefreshing(true);
+    loadMarketQuotes(HOME_MARKET_INSTRUMENTS, fetchQuote, controller.signal)
+      .then((results) => {
+        if (active) {
+          setMarketResults(results);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsRefreshing(false);
+        }
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [refreshVersion]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  const latestReceivedAt = marketResults
+    .flatMap((result) => result.quote?.received_at ? [result.quote.received_at] : [])
+    .sort()
+    .at(-1);
+
+  return (
+    <main className="home-shell">
+      <header className="home-toolbar">
+        <div className="home-brand">
+          <span className="home-brand__mark" aria-hidden="true">CQ</span>
+          <div>
+            <p>CHAN QUANT</p>
+            <strong>结构与趋势量化研究台</strong>
+          </div>
+        </div>
+        <nav className="home-nav" aria-label="主导航">
+          <span className="home-nav__item home-nav__item--active">市场概览</span>
+          <span className="home-nav__item">研究工作台</span>
+        </nav>
+        <InstrumentSearch variant="compact" onSelect={onSelect} />
+      </header>
+
+      <section className="home-hero">
+        <div className="home-hero__content">
+          <p className="home-kicker">AUDITABLE MARKET RESEARCH</p>
+          <h1>把行情、结构与证据放在同一张研究桌上</h1>
+          <p>
+            从市场快照进入单标的结构研究。每一项结论都保留数据来源、规则版本、确认时间与原始证据。
+          </p>
+          <div className="home-hero__tags" aria-label="当前支持范围">
+            <span>A 股</span><span>ETF</span><span>指数</span><span>日线研究</span>
+          </div>
+        </div>
+        <aside className="home-hero__boundary">
+          <span className="home-hero__boundary-label">RESEARCH STATUS</span>
+          <strong>Independent v0.1</strong>
+          <p>草案规则 · 可复现 · 不使用未来数据</p>
+          <small>仅供研究与审计，不连接券商，不构成交易建议。</small>
+        </aside>
+      </section>
+
+      <section className="home-section" aria-labelledby="market-snapshot-title">
+        <div className="home-section__heading">
+          <div>
+            <p className="home-section__eyebrow">MARKET SNAPSHOT</p>
+            <h2 id="market-snapshot-title">主要指数快照</h2>
+          </div>
+          <div className="home-section__actions">
+            <span>{latestReceivedAt ? `接收于 ${formatQuoteTime(latestReceivedAt)}` : "等待行情响应"}</span>
+            <button type="button" onClick={refresh} disabled={isRefreshing}>
+              {isRefreshing ? "刷新中" : "刷新"}
+            </button>
+          </div>
+        </div>
+        <p className="home-section__note">
+          新浪未文档化行情的独立快照；不进入日线策略链路，也不代表交易级行情服务。
+        </p>
+        <div className="home-market-grid">
+          {marketResults.map((result) => (
+            <MarketCard key={result.instrument.symbol} result={result} />
+          ))}
+        </div>
+      </section>
+
+      <section className="home-section" aria-labelledby="research-modules-title">
+        <div className="home-section__heading">
+          <div>
+            <p className="home-section__eyebrow">RESEARCH MODULES</p>
+            <h2 id="research-modules-title">研究能力</h2>
+          </div>
+          <span className="home-section__summary">当前能力与后续边界分开呈现</span>
+        </div>
+        <div className="home-module-grid">
+          {RESEARCH_MODULES.map((module) => (
+            <article className={`home-module-card home-module-card--${module.tone}`} key={module.code}>
+              <div className="home-module-card__topline">
+                <span>{module.code}</span>
+                <small>{module.meta}</small>
+              </div>
+              <h3>{module.title}</h3>
+              <p>{module.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="home-audit-grid">
+        <article className="home-audit-card">
+          <p className="home-section__eyebrow">AUDIT TIMELINE</p>
+          <h2>结构发生，不等于当时可交易</h2>
+          <div className="home-timeline" aria-label="结构审计时间线">
+            <div><span>01</span><strong>structure_at</strong><small>结构所在位置</small></div>
+            <i aria-hidden="true" />
+            <div><span>02</span><strong>confirmed_at</strong><small>规则确认时点</small></div>
+            <i aria-hidden="true" />
+            <div><span>03</span><strong>executable_at</strong><small>最早执行时点</small></div>
+          </div>
+        </article>
+        <article className="home-boundary-card">
+          <span className="home-boundary-card__icon" aria-hidden="true">i</span>
+          <div>
+            <p className="home-section__eyebrow">DATA BOUNDARY</p>
+            <h2>数据状态必须可见</h2>
+            <p>合成行情、外部 CSV 和未文档化行情使用不同标识；缺失值和上游失败不会被静默替换为零或演示数字。</p>
+          </div>
+        </article>
+      </section>
+
+      <footer className="home-footer">
+        <span>Chan Quant · Independent v0.1 草案</span>
+        <span>研究与审计工具 · 不构成交易建议</span>
+      </footer>
+    </main>
+  );
+}

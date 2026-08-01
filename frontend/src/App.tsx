@@ -4,6 +4,7 @@ import { fetchDashboard } from "./api/dashboard";
 import { fetchQuote } from "./api/quote";
 import { ChanChart } from "./components/ChanChart";
 import { DataQualityPanel } from "./components/DataQualityPanel";
+import { HomePage } from "./components/HomePage";
 import { InstrumentSearch, normalizeDirectSymbol } from "./components/InstrumentSearch";
 import { MetricCard } from "./components/MetricCard";
 import { PerformanceCard } from "./components/PerformanceCard";
@@ -16,6 +17,22 @@ import type { QuoteSnapshot } from "./types/quote";
 export function symbolFromSearch(search: string): string | null {
   const requested = new URLSearchParams(search).get("symbol");
   return requested ? normalizeDirectSymbol(requested) : null;
+}
+
+
+export type AppView =
+  | { name: "home" }
+  | { name: "search" }
+  | { name: "dashboard"; symbol: string };
+
+
+export function appViewFromLocation(pathname: string, search: string): AppView {
+  const symbol = symbolFromSearch(search);
+  if (symbol) {
+    return { name: "dashboard", symbol };
+  }
+  const normalizedPath = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return normalizedPath === "/search" ? { name: "search" } : { name: "home" };
 }
 
 
@@ -261,10 +278,14 @@ function ResearchWorkspace({
 
 
 export default function App() {
-  const [symbol, setSymbol] = useState<string | null>(() => symbolFromSearch(window.location.search));
+  const [view, setView] = useState<AppView>(() => (
+    appViewFromLocation(window.location.pathname, window.location.search)
+  ));
 
   useEffect(() => {
-    const handlePopState = () => setSymbol(symbolFromSearch(window.location.search));
+    const handlePopState = () => setView(
+      appViewFromLocation(window.location.pathname, window.location.search),
+    );
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
@@ -275,25 +296,31 @@ export default function App() {
       return;
     }
     const url = new URL(window.location.href);
+    url.pathname = "/";
+    url.search = "";
     url.searchParams.set("symbol", normalized);
     window.history.pushState({}, "", url);
-    setSymbol(normalized);
+    setView({ name: "dashboard", symbol: normalized });
   }, []);
 
   const navigateHome = useCallback(() => {
     const url = new URL(window.location.href);
-    url.searchParams.delete("symbol");
+    url.pathname = "/";
+    url.search = "";
     window.history.pushState({}, "", url);
-    setSymbol(null);
+    setView({ name: "home" });
   }, []);
 
-  if (!symbol) {
+  if (view.name === "home") {
+    return <HomePage onSelect={navigateToSymbol} />;
+  }
+  if (view.name === "search") {
     return <LandingPage onSelect={navigateToSymbol} />;
   }
   return (
     <ResearchWorkspace
-      key={symbol}
-      symbol={symbol}
+      key={view.symbol}
+      symbol={view.symbol}
       onSelect={navigateToSymbol}
       onHome={navigateHome}
     />

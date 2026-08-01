@@ -1,10 +1,12 @@
 import type { QuoteSnapshot } from "../types/quote";
 
 
-export async function fetchQuote(symbol: string): Promise<QuoteSnapshot> {
-  const response = await fetch(
-    `/api/v1/instruments/${encodeURIComponent(symbol)}/quote`,
-  );
+export async function fetchQuote(
+  symbol: string,
+  signal?: AbortSignal,
+): Promise<QuoteSnapshot> {
+  const url = `/api/v1/instruments/${encodeURIComponent(symbol)}/quote`;
+  const response = signal ? await fetch(url, { signal }) : await fetch(url);
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as {
       detail?: unknown;
