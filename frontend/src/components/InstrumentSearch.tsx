@@ -29,6 +29,15 @@ export function InstrumentSearch({
   const directSymbol = normalizeDirectSymbol(query);
   const normalizedQuery = query.trim();
 
+  const selectSymbol = (symbol: string) => {
+    setQuery("");
+    setItems([]);
+    setIsLoading(false);
+    setHasSearched(false);
+    setError(null);
+    onSelect(symbol);
+  };
+
   useEffect(() => {
     if (!normalizedQuery || directSymbol) {
       setItems([]);
@@ -71,9 +80,9 @@ export function InstrumentSearch({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (directSymbol) {
-      onSelect(directSymbol);
+      selectSymbol(directSymbol);
     } else if (!isLoading && items.length === 1) {
-      onSelect(items[0].symbol);
+      selectSymbol(items[0].symbol);
     }
   };
 
@@ -116,7 +125,7 @@ export function InstrumentSearch({
               type="button"
               role="option"
               aria-selected="false"
-              onClick={() => onSelect(directSymbol)}
+              onClick={() => selectSymbol(directSymbol)}
             >
               <span>
                 <strong>{directSymbol}</strong>
@@ -136,7 +145,7 @@ export function InstrumentSearch({
                 role="option"
                 aria-selected="false"
                 key={item.symbol}
-                onClick={() => onSelect(item.symbol)}
+                onClick={() => selectSymbol(item.symbol)}
               >
                 <span>
                   <strong>{item.name}</strong>

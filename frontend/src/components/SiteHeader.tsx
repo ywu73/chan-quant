@@ -1,0 +1,79 @@
+import type { MouseEvent } from "react";
+
+import { InstrumentSearch } from "./InstrumentSearch";
+
+
+type SiteSection = "market" | "research";
+
+
+interface SiteHeaderProps {
+  activeSection: SiteSection;
+  onNavigateHome: () => void;
+  onNavigateResearch: () => void;
+  onSelect: (symbol: string) => void;
+}
+
+
+function handleInternalNavigation(
+  event: MouseEvent<HTMLAnchorElement>,
+  navigate: () => void,
+) {
+  if (
+    event.defaultPrevented
+    || event.button !== 0
+    || event.metaKey
+    || event.ctrlKey
+    || event.shiftKey
+    || event.altKey
+  ) {
+    return;
+  }
+  event.preventDefault();
+  navigate();
+}
+
+
+export function SiteHeader({
+  activeSection,
+  onNavigateHome,
+  onNavigateResearch,
+  onSelect,
+}: SiteHeaderProps) {
+  return (
+    <header className="site-header">
+      <a
+        className="site-brand"
+        href="/"
+        aria-label="返回市场概况首页"
+        onClick={(event) => handleInternalNavigation(event, onNavigateHome)}
+      >
+        <span className="site-brand__mark" aria-hidden="true">CQ</span>
+        <span className="site-brand__copy">
+          <span>CHAN QUANT</span>
+          <strong>结构与趋势量化研究台</strong>
+        </span>
+      </a>
+
+      <nav className="site-nav" aria-label="主导航">
+        <a
+          className={`site-nav__item${activeSection === "market" ? " site-nav__item--active" : ""}`}
+          href="/"
+          aria-current={activeSection === "market" ? "page" : undefined}
+          onClick={(event) => handleInternalNavigation(event, onNavigateHome)}
+        >
+          市场概况
+        </a>
+        <a
+          className={`site-nav__item${activeSection === "research" ? " site-nav__item--active" : ""}`}
+          href="/search"
+          aria-current={activeSection === "research" ? "page" : undefined}
+          onClick={(event) => handleInternalNavigation(event, onNavigateResearch)}
+        >
+          研究工作台
+        </a>
+      </nav>
+
+      <InstrumentSearch variant="compact" onSelect={onSelect} />
+    </header>
+  );
+}

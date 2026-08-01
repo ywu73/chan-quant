@@ -9,6 +9,7 @@ import { InstrumentSearch, normalizeDirectSymbol } from "./components/Instrument
 import { MetricCard } from "./components/MetricCard";
 import { PerformanceCard } from "./components/PerformanceCard";
 import { QuotePanel } from "./components/QuotePanel";
+import { SiteHeader } from "./components/SiteHeader";
 import { startQuotePolling } from "./quotePolling";
 import type { DashboardSnapshot } from "./types/dashboard";
 import type { QuoteSnapshot } from "./types/quote";
@@ -36,29 +37,12 @@ export function appViewFromLocation(pathname: string, search: string): AppView {
 }
 
 
-function Brand({ onHome }: { onHome?: () => void }) {
-  const content = (
-    <>
-      <p className="eyebrow">CHAN QUANT · 缠论量化研究台</p>
-    </>
-  );
-  if (!onHome) {
-    return content;
-  }
-  return (
-    <button className="brand-button" type="button" onClick={onHome}>
-      {content}
-    </button>
-  );
-}
-
-
 function LandingPage({ onSelect }: { onSelect: (symbol: string) => void }) {
   return (
     <main className="landing-page">
       <section className="landing-card">
         <div className="landing-card__mark" aria-hidden="true">CQ</div>
-        <Brand />
+        <p className="eyebrow">CHAN QUANT · 缠论量化研究台</p>
         <h1>从一个标的开始结构研究</h1>
         <p className="landing-card__intro">
           搜索沪深股票、ETF 或指数的代码与名称，查看可追溯的趋势状态、结构事件与研究证据。
@@ -78,55 +62,30 @@ function LandingPage({ onSelect }: { onSelect: (symbol: string) => void }) {
 }
 
 
-function WorkspaceHeader({
-  onSelect,
-  onHome,
-  children,
-}: {
-  onSelect: (symbol: string) => void;
-  onHome: () => void;
-  children?: React.ReactNode;
-}) {
-  return (
-    <header className="toolbar">
-      <div className="toolbar__identity">
-        <Brand onHome={onHome} />
-        {children}
-      </div>
-      <InstrumentSearch variant="compact" onSelect={onSelect} />
-    </header>
-  );
-}
-
-
 function Dashboard({
   snapshot,
   quote,
   quoteError,
-  onSelect,
-  onHome,
 }: {
   snapshot: DashboardSnapshot;
   quote: QuoteSnapshot | null;
   quoteError: string | null;
-  onSelect: (symbol: string) => void;
-  onHome: () => void;
 }) {
   const { instrument, recommendation, signal_performance: performance } = snapshot;
   const displayedName = instrument.name;
 
   return (
     <main className="dashboard-shell">
-      <WorkspaceHeader onSelect={onSelect} onHome={onHome}>
+      <div className="workspace-heading">
         <h1>{displayedName}</h1>
-      </WorkspaceHeader>
-      <div className="toolbar__meta">
-        <span>{instrument.symbol}</span>
-        <span>日线</span>
-        <span>截至 {instrument.as_of}</span>
-        <span>{instrument.data_source}</span>
-        <span>复权：{instrument.adjustment}</span>
-        <span>{snapshot.strategy.version}</span>
+        <div className="toolbar__meta">
+          <span>{instrument.symbol}</span>
+          <span>日线</span>
+          <span>截至 {instrument.as_of}</span>
+          <span>{instrument.data_source}</span>
+          <span>复权：{instrument.adjustment}</span>
+          <span>{snapshot.strategy.version}</span>
+        </div>
       </div>
 
       {snapshot.is_mock && (
@@ -212,12 +171,8 @@ function Dashboard({
 
 function ResearchWorkspace({
   symbol,
-  onSelect,
-  onHome,
 }: {
   symbol: string;
-  onSelect: (symbol: string) => void;
-  onHome: () => void;
 }) {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -255,9 +210,9 @@ function ResearchWorkspace({
   if (error || !snapshot) {
     return (
       <main className="dashboard-shell">
-        <WorkspaceHeader onSelect={onSelect} onHome={onHome}>
+        <div className="workspace-heading">
           <h1>{symbol}</h1>
-        </WorkspaceHeader>
+        </div>
         <div className={`page-state page-state--within${error ? " page-state--error" : ""}`}>
           {error ?? `正在读取 ${symbol} 的策略快照…`}
         </div>
@@ -270,8 +225,6 @@ function ResearchWorkspace({
       snapshot={snapshot}
       quote={quote}
       quoteError={quoteError}
-      onSelect={onSelect}
-      onHome={onHome}
     />
   );
 }
@@ -311,18 +264,27 @@ export default function App() {
     setView({ name: "home" });
   }, []);
 
-  if (view.name === "home") {
-    return <HomePage onSelect={navigateToSymbol} />;
-  }
-  if (view.name === "search") {
-    return <LandingPage onSelect={navigateToSymbol} />;
-  }
+  const navigateResearch = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.pathname = "/search";
+    url.search = "";
+    window.history.pushState({}, "", url);
+    setView({ name: "search" });
+  }, []);
+
   return (
-    <ResearchWorkspace
-      key={view.symbol}
-      symbol={view.symbol}
-      onSelect={navigateToSymbol}
-      onHome={navigateHome}
-    />
+    <>
+      <SiteHeader
+        activeSection={view.name === "home" ? "market" : "research"}
+        onNavigateHome={navigateHome}
+        onNavigateResearch={navigateResearch}
+        onSelect={navigateToSymbol}
+      />
+      {view.name === "home" && <HomePage />}
+      {view.name === "search" && <LandingPage onSelect={navigateToSymbol} />}
+      {view.name === "dashboard" && (
+        <ResearchWorkspace key={view.symbol} symbol={view.symbol} />
+      )}
+    </>
   );
 }

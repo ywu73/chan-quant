@@ -9,7 +9,6 @@ import {
   type MarketQuoteResult,
 } from "../homeMarket";
 import type { QuoteStatus } from "../types/quote";
-import { InstrumentSearch } from "./InstrumentSearch";
 
 
 const STATUS_LABEL: Record<QuoteStatus, string> = {
@@ -122,7 +121,7 @@ function MarketCard({ result }: { result: MarketQuoteResult }) {
 }
 
 
-export function HomePage({ onSelect }: { onSelect: (symbol: string) => void }) {
+export function HomePage() {
   const [marketResults, setMarketResults] = useState<MarketQuoteResult[]>(
     HOME_MARKET_INSTRUMENTS.map((instrument) => ({ instrument, quote: null, error: null })),
   );
@@ -168,21 +167,6 @@ export function HomePage({ onSelect }: { onSelect: (symbol: string) => void }) {
 
   return (
     <main className="home-shell">
-      <header className="home-toolbar">
-        <div className="home-brand">
-          <span className="home-brand__mark" aria-hidden="true">CQ</span>
-          <div>
-            <p>CHAN QUANT</p>
-            <strong>结构与趋势量化研究台</strong>
-          </div>
-        </div>
-        <nav className="home-nav" aria-label="主导航">
-          <span className="home-nav__item home-nav__item--active">市场概览</span>
-          <span className="home-nav__item">研究工作台</span>
-        </nav>
-        <InstrumentSearch variant="compact" onSelect={onSelect} />
-      </header>
-
       <section className="home-hero">
         <div className="home-hero__content">
           <p className="home-kicker">AUDITABLE MARKET RESEARCH</p>
