@@ -12,6 +12,14 @@ Chan Quant 是一个结构与趋势量化研究台。它把严格三 K 分型、
 ./start.sh
 ```
 
+Windows PowerShell 用户可以直接执行：
+
+```powershell
+.\start.ps1
+```
+
+如果在 Windows 中使用 Bash，请优先使用 Git Bash。PowerShell 中的 `bash` 可能解析为 WSL 启动器；当 WSL 不可用或权限受限时，应改用 Git Bash 或上面的 `start.ps1`。
+
 脚本会默认使用新浪日 K，同时启动后端和前端，并打印页面地址：
 
 ```text
