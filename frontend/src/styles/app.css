@@ -1003,6 +1003,17 @@ button {
 .comparison-metrics p { margin: 7px 0 0; color: #8794a6; font-size: 9px; line-height: 1.55; }
 .comparison-metrics .comparison-metrics__warning { color: #96702c; }
 
+.comparison-metrics .comparison-metric-card__section-label {
+  margin-top: 14px;
+  color: #687890;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+}
+
+.comparison-metrics .comparison-metric-card__historical-facts {
+  margin-top: 8px;
+}
+
 .comparison-metric-card__quote {
   margin: 14px -2px 12px;
   padding: 13px;
@@ -1045,6 +1056,10 @@ button {
 .comparison-metrics .comparison-metric-card__quote dl div {
   border: 1px solid #e3ebf5;
   background: #fff;
+}
+
+.comparison-metrics .comparison-metric-card__quote-facts dd {
+  font-size: 12px;
 }
 
 .comparison-metrics .comparison-metric-card__quote p {

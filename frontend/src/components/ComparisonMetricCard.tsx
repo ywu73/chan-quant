@@ -1,11 +1,16 @@
 import type { ComparisonQuoteState } from "../comparisonQuotePolling";
-import { formatPercent, formatPrice, formatQuoteTime } from "../format";
+import { formatPercent, formatPrice, formatQuoteTime, formatVolume } from "../format";
 import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
 import type { ComparisonSeries } from "../types/comparison";
 
 interface ComparisonMetricCardProps {
   series: ComparisonSeries;
   quoteState: ComparisonQuoteState;
+}
+
+
+function formatSignedPrice(value: number, precision: number): string {
+  return `${value > 0 ? "+" : ""}${formatPrice(value, precision)}`;
 }
 
 
@@ -23,7 +28,8 @@ export function ComparisonMetricCard({ series, quoteState }: ComparisonMetricCar
         <small>{series.adjustment}</small>
       </header>
 
-      <dl>
+      <p className="comparison-metric-card__section-label">历史比较指标</p>
+      <dl className="comparison-metric-card__historical-facts">
         <div><dt>起始价</dt><dd>{formatPrice(series.baseline_price, precision)}</dd></div>
         <div><dt>区间末收盘</dt><dd>{formatPrice(series.latest_close, precision)}</dd></div>
         <div><dt>累计收益</dt><dd>{formatPercent(series.cumulative_return, 2)}</dd></div>
@@ -52,9 +58,15 @@ export function ComparisonMetricCard({ series, quoteState }: ComparisonMetricCar
         )}
         {quote && (
           <>
-            <dl>
+            <dl className="comparison-metric-card__quote-facts">
               <div><dt>最新价</dt><dd>{formatPrice(quote.last_price, precision)}</dd></div>
-              <div><dt>当日涨跌</dt><dd>{formatPercent(quote.change_percent, 2)}</dd></div>
+              <div><dt>涨跌额</dt><dd>{formatSignedPrice(quote.change, precision)}</dd></div>
+              <div><dt>涨跌幅</dt><dd>{formatPercent(quote.change_percent, 2)}</dd></div>
+              <div><dt>昨收</dt><dd>{formatPrice(quote.previous_close, precision)}</dd></div>
+              <div><dt>今开</dt><dd>{formatPrice(quote.open, precision)}</dd></div>
+              <div><dt>最高</dt><dd>{formatPrice(quote.high, precision)}</dd></div>
+              <div><dt>最低</dt><dd>{formatPrice(quote.low, precision)}</dd></div>
+              <div><dt>成交量</dt><dd>{formatVolume(quote.volume)}</dd></div>
             </dl>
             <p>行情时间 {formatQuoteTime(quote.quote_at)}</p>
             <p>接收时间 {formatQuoteTime(quote.received_at)} · {quote.source}</p>

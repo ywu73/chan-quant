@@ -71,14 +71,89 @@ describe("ComparisonMetricCard", () => {
     expect(markup).toContain("¥88.00");
     expect(markup).toContain("上一交易日");
     expect(markup).toContain("10.00%");
+    expect(markup).toContain("历史比较指标");
     expect(markup).toContain("独立行情快照");
+    expect(markup).toContain("实时");
     expect(markup).toContain("最新价");
     expect(markup).toContain("¥11.62");
-    expect(markup).toContain("当日涨跌");
+    expect(markup).toContain("涨跌额");
+    expect(markup).toContain("+¥0.14");
+    expect(markup).toContain("涨跌幅");
     expect(markup).toContain("1.22%");
+    expect(markup).toContain("昨收");
+    expect(markup).toContain("¥11.48");
+    expect(markup).toContain("今开");
+    expect(markup).toContain("最高");
+    expect(markup).toContain("¥11.67");
+    expect(markup).toContain("最低");
+    expect(markup).toContain("¥11.42");
+    expect(markup).toContain("成交量");
+    expect(markup).toContain("6321.00 万");
     expect(markup).toContain("行情时间 2026-08-01 14:35:06");
+    expect(markup).toContain("接收时间 2026-08-01 14:35:07");
     expect(markup).toContain("sina-undocumented-quote");
     expect(markup).toContain("盘中价不参与历史比较指标计算");
+  });
+
+  it("uses the instrument precision for every quote price", () => {
+    const etfSeries = {
+      ...series,
+      instrument: {
+        symbol: "513100.SH",
+        name: "纳指ETF国泰",
+        exchange: "SH",
+        asset_type: "ETF",
+        price_precision: 3,
+      },
+    } satisfies ComparisonSeries;
+    const etfQuote = {
+      ...quote,
+      symbol: "513100.SH",
+      name: "纳指ETF国泰",
+      last_price: 2.112,
+      previous_close: 2.1,
+      change: 0.012,
+      open: 2.101,
+      high: 2.123,
+      low: 2.098,
+    } satisfies QuoteSnapshot;
+    const quoteState = {
+      status: "READY",
+      quote: etfQuote,
+      error: null,
+    } satisfies ComparisonQuoteState;
+
+    const markup = renderToStaticMarkup(
+      <ComparisonMetricCard series={etfSeries} quoteState={quoteState} />,
+    );
+
+    expect(markup).toContain("¥2.112");
+    expect(markup).toContain("+¥0.012");
+    expect(markup).toContain("¥2.100");
+    expect(markup).toContain("¥2.101");
+    expect(markup).toContain("¥2.123");
+    expect(markup).toContain("¥2.098");
+  });
+
+  it("shows delayed, closed, and stale quote lifecycle states", () => {
+    const cases = [
+      ["DELAYED", false, "延迟"],
+      ["CLOSED", false, "已收盘"],
+      ["LIVE", true, "已过期"],
+    ] as const;
+
+    for (const [status, isStale, label] of cases) {
+      const quoteState = {
+        status: "READY",
+        quote: { ...quote, status, is_stale: isStale },
+        error: null,
+      } satisfies ComparisonQuoteState;
+      const markup = renderToStaticMarkup(
+        <ComparisonMetricCard series={series} quoteState={quoteState} />,
+      );
+
+      expect(markup).toContain(label);
+    }
   });
 
   it("keeps historical metrics visible when the quote fails", () => {
@@ -96,5 +171,6 @@ describe("ComparisonMetricCard", () => {
     expect(markup).toContain("-12.00%");
     expect(markup).toContain("实时行情不可用（HTTP 503）");
     expect(markup).not.toContain("最新价");
+    expect(markup).not.toContain("成交量");
   });
 });
