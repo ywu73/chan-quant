@@ -32,6 +32,9 @@ class ComparisonSeries(BaseModel):
     data_from: date
     data_to: date
     baseline_at: date
+    baseline_price: float
+    latest_close: float
+    previous_trading_day_return: float | None
     values: list[float | None]
     cumulative_return: float
     max_drawdown: float = Field(le=0)

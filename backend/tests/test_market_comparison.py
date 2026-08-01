@@ -70,6 +70,9 @@ def test_comparison_aligns_union_dates_without_filling_and_calculates_metrics() 
     assert result.dates == [date(2026, 1, 1), date(2026, 1, 2), date(2026, 1, 3)]
 
     first, second = result.series
+    assert first.baseline_price == 100
+    assert first.latest_close == 88
+    assert first.previous_trading_day_return == pytest.approx(0.1)
     assert first.values == pytest.approx([0.0, 0.1, -0.12])
     assert first.cumulative_return == pytest.approx(-0.12)
     assert first.max_drawdown == pytest.approx(-0.2)
@@ -78,6 +81,9 @@ def test_comparison_aligns_union_dates_without_filling_and_calculates_metrics() 
     assert first.coverage_ratio == 1.0
 
     assert second.values[0] == 0.0
+    assert second.baseline_price == 50
+    assert second.latest_close == 55
+    assert second.previous_trading_day_return is None
     assert second.values[1] is None
     assert second.values[2] == pytest.approx(0.1)
     assert second.cumulative_return == pytest.approx(0.1)
@@ -142,6 +148,9 @@ def test_comparison_applies_requested_range_before_normalizing() -> None:
     )
 
     assert result.series[0].baseline_at == date(2026, 1, 2)
+    assert result.series[0].baseline_price == 100
+    assert result.series[0].latest_close == 125
+    assert result.series[0].previous_trading_day_return is None
     assert result.series[0].values == pytest.approx([0.0, 0.25])
     assert result.series[0].cumulative_return == pytest.approx(0.25)
 
@@ -189,6 +198,9 @@ def test_market_comparison_endpoint_returns_partial_sina_result(
     assert payload["status"] == "PARTIAL"
     assert payload["requested"] == ["000001.SZ", "300001.SZ", "600000.SH"]
     assert payload["dates"] == ["2026-01-01", "2026-01-02", "2026-01-03"]
+    assert payload["series"][0]["baseline_price"] == 100
+    assert payload["series"][0]["latest_close"] == 88
+    assert payload["series"][0]["previous_trading_day_return"] == pytest.approx(0.1)
     assert payload["series"][1]["values"] == [0.0, None, pytest.approx(0.1)]
     assert payload["failures"] == [
         {

@@ -10,13 +10,15 @@ import {
   type BuiltInBoard,
   type StoredBoardV1,
 } from "../comparisonBoards";
+import type { ComparisonQuoteState } from "../comparisonQuotePolling";
 import { createComparisonRequestRunner } from "../comparisonRequest";
-import { formatPercent } from "../format";
 import type { MarketComparison } from "../types/comparison";
 import type { InstrumentIdentity } from "../types/instrument";
 import { useComparisonBoards } from "../useComparisonBoards";
+import { useComparisonQuotes } from "../useComparisonQuotes";
 import { ComparisonBoardPicker } from "./ComparisonBoardPicker";
 import { ComparisonChart } from "./ComparisonChart";
+import { ComparisonMetricCard } from "./ComparisonMetricCard";
 import { InstrumentSearch } from "./InstrumentSearch";
 
 
@@ -46,6 +48,8 @@ export function ComparisonPage() {
   const [boardName, setBoardName] = useState("");
   const requestRunnerRef = useRef<ReturnType<typeof createComparisonRequestRunner> | null>(null);
   const boardState = useComparisonBoards();
+  const comparisonSymbols = comparison?.series.map((series) => series.instrument.symbol) ?? [];
+  const quoteStates = useComparisonQuotes(comparisonSymbols);
 
   if (requestRunnerRef.current === null) {
     requestRunnerRef.current = createComparisonRequestRunner(fetchMarketComparison);
@@ -283,34 +287,20 @@ export function ComparisonPage() {
           )}
 
           <section className="comparison-metrics" aria-label="多标的比较指标">
-            {comparison.series.map((series) => (
-              <article key={series.instrument.symbol}>
-                <header>
-                  <div>
-                    <strong>{series.instrument.name}</strong>
-                    <span>{series.instrument.symbol}</span>
-                  </div>
-                  <small>{series.adjustment}</small>
-                </header>
-                <dl>
-                  <div><dt>累计收益</dt><dd>{formatPercent(series.cumulative_return, 2)}</dd></div>
-                  <div><dt>最大回撤</dt><dd>{formatPercent(series.max_drawdown, 2)}</dd></div>
-                  <div><dt>有效覆盖</dt><dd>{formatPercent(series.coverage_ratio, 1)}</dd></div>
-                  <div><dt>基准日期</dt><dd>{series.baseline_at}</dd></div>
-                </dl>
-                <p>
-                  回撤区间：{series.max_drawdown_peak_at && series.max_drawdown_trough_at
-                    ? `${series.max_drawdown_peak_at} → ${series.max_drawdown_trough_at}`
-                    : "区间内未出现收盘价回撤"}
-                </p>
-                <p>来源：{series.data_source} · 币种：{series.currency}</p>
-                {series.warnings.map((warning) => (
-                  <p className="comparison-metrics__warning" key={warning.code}>
-                    {warning.message}
-                  </p>
-                ))}
-              </article>
-            ))}
+            {comparison.series.map((series) => {
+              const quoteState: ComparisonQuoteState = quoteStates[series.instrument.symbol] ?? {
+                status: "LOADING",
+                quote: null,
+                error: null,
+              };
+              return (
+                <ComparisonMetricCard
+                  key={series.instrument.symbol}
+                  series={series}
+                  quoteState={quoteState}
+                />
+              );
+            })}
           </section>
 
           {comparison.failures.length > 0 && (

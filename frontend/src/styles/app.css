@@ -1003,6 +1003,59 @@ button {
 .comparison-metrics p { margin: 7px 0 0; color: #8794a6; font-size: 9px; line-height: 1.55; }
 .comparison-metrics .comparison-metrics__warning { color: #96702c; }
 
+.comparison-metric-card__quote {
+  margin: 14px -2px 12px;
+  padding: 13px;
+  border: 1px solid #dbe5f2;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.comparison-metric-card__quote-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.comparison-metric-card__quote-heading strong {
+  color: #4b607e;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.comparison-metric-card__quote-heading span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #277e43;
+  font-size: 9px;
+  font-weight: 750;
+  background: #eaf8ef;
+}
+
+.comparison-metric-card__quote-heading span.is-stale {
+  color: #9a641f;
+  background: #fff1d5;
+}
+
+.comparison-metrics .comparison-metric-card__quote dl {
+  margin: 10px 0 8px;
+}
+
+.comparison-metrics .comparison-metric-card__quote dl div {
+  border: 1px solid #e3ebf5;
+  background: #fff;
+}
+
+.comparison-metrics .comparison-metric-card__quote p {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+.comparison-metrics .comparison-metric-card__quote-error {
+  color: #ad4f47;
+}
+
 .comparison-failures {
   margin-top: 14px;
   padding: 18px;

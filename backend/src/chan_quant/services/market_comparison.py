@@ -136,6 +136,9 @@ def _align_common_window(
 def _build_series(item: _LoadedSeries, dates: list[date]) -> ComparisonSeries:
     baseline = item.bars[0]
     final = item.bars[-1]
+    previous_trading_day_return = (
+        item.bars[-2].close / item.bars[-3].close - 1 if len(item.bars) >= 3 else None
+    )
     normalized_by_date = {bar.date: bar.close / baseline.close - 1 for bar in item.bars}
     max_drawdown, peak_at, trough_at = _drawdown(item.bars)
     return ComparisonSeries(
@@ -146,6 +149,9 @@ def _build_series(item: _LoadedSeries, dates: list[date]) -> ComparisonSeries:
         data_from=item.bars[0].date,
         data_to=item.bars[-1].date,
         baseline_at=baseline.date,
+        baseline_price=baseline.close,
+        latest_close=final.close,
+        previous_trading_day_return=previous_trading_day_return,
         values=[normalized_by_date.get(day) for day in dates],
         cumulative_return=final.close / baseline.close - 1,
         max_drawdown=max_drawdown,

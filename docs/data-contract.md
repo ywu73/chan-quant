@@ -204,6 +204,9 @@ GET /api/v1/market-comparison?symbols=000001.SZ&symbols=600000.SH&start=2025-01-
       "data_from": "2025-01-02",
       "data_to": "2026-07-31",
       "baseline_at": "2025-01-02",
+      "baseline_price": 10.25,
+      "latest_close": 11.48,
+      "previous_trading_day_return": -0.0061,
       "values": [0.0, null],
       "cumulative_return": 0.12,
       "max_drawdown": -0.18,
@@ -218,6 +221,8 @@ GET /api/v1/market-comparison?symbols=000001.SZ&symbols=600000.SH&start=2025-01-
 ```
 
 上述数字和名称只是合同示例，不是真实市场结果。`COMPLETE` 表示所有请求标的成功，`PARTIAL` 表示至少一个成功且至少一个失败，`FAILED` 表示没有可输出的曲线。批量接口以 `200` 返回逐项失败，只有请求合同或全局数据模式不成立时返回 `422`。
+
+`baseline_price` 是共同覆盖窗口内该标的首个有效收盘价，`latest_close` 是请求日期范围内最后一个有效收盘价；两者都属于历史日 K，不是当前实时价格。`previous_trading_day_return` 使用窗口内倒数第二个有效交易日收盘价相对倒数第三个有效交易日收盘价计算，少于三个有效交易日时为 `null`。这些值和累计收益、最大回撤一样由后端计算，前端只按标的精度格式化。
 
 `max_drawdown` 使用有效收盘价序列的历史峰值到后续谷值计算，返回非正十进制值，并同时给出峰值日与谷值日。未出现收盘价回撤时为 `0`，两个日期为 `null`。这不是组合资金曲线，也不包含交易成本、分红复权修复、汇率转换或可执行交易假设。
 
@@ -307,6 +312,8 @@ GET /api/v1/instruments/{symbol}/quote
 | `503` | 当前快照不可用 | 空字符串、全零快照，或开高低与成交量均为零的非交易快照 |
 
 前端失败时不得无标记地延续旧价；Quote 故障不得阻断 Dashboard 或改变任何 `structure_at/confirmed_at/executable_at`。
+
+比较页只对历史比较成功的标的启动独立 Quote 轮询。每个标的的成功、失败和 stale 状态单独展示；一个 Quote 失败不得清空其他标的，也不得清空历史曲线和历史指标。切换组合、重新生成结果、页面隐藏或组件卸载时必须中止旧请求并抑制晚到响应。`last_price` 和 `change_percent` 始终标为独立行情快照，不能覆盖 `baseline_price`、`latest_close`、`previous_trading_day_return` 或其他历史比较结论。
 
 ## 版本字段
 

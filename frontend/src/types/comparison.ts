@@ -23,6 +23,9 @@ export interface ComparisonSeries {
   data_from: string;
   data_to: string;
   baseline_at: string;
+  baseline_price: number;
+  latest_close: number;
+  previous_trading_day_return: number | null;
   values: Array<number | null>;
   cumulative_return: number;
   max_drawdown: number;
