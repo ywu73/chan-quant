@@ -5,7 +5,15 @@ import { CN_BROAD_INDEX_BY_SYMBOL } from "./marketInstruments";
 export interface MarketInstrument {
   symbol: string;
   displayName: string;
-  color: "red" | "blue" | "orange" | "green" | "purple";
+  color:
+    | "red"
+    | "blue"
+    | "orange"
+    | "green"
+    | "purple"
+    | "teal"
+    | "pink"
+    | "slate";
 }
 
 
@@ -18,10 +26,13 @@ export interface MarketQuoteResult {
 
 const HOME_MARKET_COLORS: Array<[string, MarketInstrument["color"]]> = [
   ["000001.SH", "red"],
-  ["000300.SH", "blue"],
-  ["000016.SH", "orange"],
+  ["399001.SZ", "teal"],
   ["399006.SZ", "green"],
+  ["000300.SH", "blue"],
+  ["000905.SH", "pink"],
+  ["000852.SH", "slate"],
   ["000688.SH", "purple"],
+  ["000016.SH", "orange"],
 ];
 
 export const HOME_MARKET_INSTRUMENTS: MarketInstrument[] = HOME_MARKET_COLORS.map(

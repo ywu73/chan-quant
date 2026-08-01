@@ -75,7 +75,7 @@ function MarketCard({ result }: { result: MarketQuoteResult }) {
       <div className="home-market-card__heading">
         <div>
           <span className="home-market-card__dot" aria-hidden="true" />
-          <strong>{quote?.name || instrument.displayName}</strong>
+          <strong>{instrument.displayName}</strong>
           <small>{instrument.symbol}</small>
         </div>
         <span className={`home-market-card__status${error ? " home-market-card__status--error" : ""}`}>

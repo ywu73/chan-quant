@@ -5,6 +5,7 @@ import {
   intradayRangePosition,
   loadMarketQuotes,
 } from "./homeMarket";
+import { CN_BROAD_INDEX_CATALOG } from "./marketInstruments";
 import type { QuoteSnapshot } from "./types/quote";
 
 
@@ -28,17 +29,36 @@ const quote = {
 
 
 describe("home market snapshot", () => {
-  it("keeps successful cards when another quote fails", async () => {
-    const instruments = HOME_MARKET_INSTRUMENTS.slice(0, 2);
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(quote)
-      .mockRejectedValueOnce(new Error("provider unavailable"));
+  it("uses every verified broad index identity with a distinct accent", () => {
+    expect(HOME_MARKET_INSTRUMENTS.map(({ symbol, displayName }) => ({
+      symbol,
+      displayName,
+    }))).toEqual(CN_BROAD_INDEX_CATALOG.map((instrument) => ({
+      symbol: instrument.symbol,
+      displayName: instrument.name,
+    })));
+    expect(
+      new Set(HOME_MARKET_INSTRUMENTS.map((instrument) => instrument.color)).size,
+    ).toBe(8);
+  });
 
-    const results = await loadMarketQuotes(instruments, fetcher);
+  it("keeps seven successful cards when one of eight quotes fails", async () => {
+    const failedSymbol = "000905.SH";
+    const fetcher = vi.fn(async (symbol: string) => {
+      if (symbol === failedSymbol) throw new Error("provider unavailable");
+      const instrument = HOME_MARKET_INSTRUMENTS.find((item) => item.symbol === symbol);
+      if (!instrument) throw new Error(`unexpected instrument ${symbol}`);
+      return { ...quote, symbol, name: instrument.displayName };
+    });
 
-    expect(results).toHaveLength(2);
-    expect(results[0]).toMatchObject({ quote, error: null });
-    expect(results[1]).toMatchObject({ quote: null, error: "provider unavailable" });
+    const results = await loadMarketQuotes(HOME_MARKET_INSTRUMENTS, fetcher);
+
+    expect(results).toHaveLength(8);
+    expect(results.filter((result) => result.quote !== null)).toHaveLength(7);
+    expect(results.find((result) => result.instrument.symbol === failedSymbol)).toMatchObject({
+      quote: null,
+      error: "provider unavailable",
+    });
   });
 
   it("locates the latest price within the observed intraday range", () => {

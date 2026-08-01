@@ -384,7 +384,7 @@ button {
 
 .home-market-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(210px, 1fr));
+  grid-template-columns: repeat(4, minmax(210px, 1fr));
   gap: 12px;
 }
 
@@ -413,6 +413,9 @@ button {
 .home-market-card--orange { --card-accent: #d97706; }
 .home-market-card--green { --card-accent: #2f9a62; }
 .home-market-card--purple { --card-accent: #7750e8; }
+.home-market-card--teal { --card-accent: #168aa3; }
+.home-market-card--pink { --card-accent: #c44d7c; }
+.home-market-card--slate { --card-accent: #65758b; }
 
 .home-market-card__heading,
 .home-market-card__price {
@@ -1765,7 +1768,6 @@ h2 {
     column-gap: 32px;
   }
   .site-header .instrument-search--compact { max-width: 430px; }
-  .home-market-grid { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
   .home-module-grid { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
   .comparison-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .comparison-selection { grid-template-columns: minmax(330px, 0.8fr) minmax(0, 1.2fr); }
