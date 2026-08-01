@@ -1,14 +1,7 @@
 import type { ComparisonQuoteState } from "../comparisonQuotePolling";
 import { formatPercent, formatPrice, formatQuoteTime } from "../format";
+import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
 import type { ComparisonSeries } from "../types/comparison";
-import type { QuoteStatus } from "../types/quote";
-
-
-const QUOTE_STATUS_LABEL: Record<QuoteStatus, string> = {
-  LIVE: "实时",
-  DELAYED: "延迟",
-  CLOSED: "已收盘",
-};
 
 interface ComparisonMetricCardProps {
   series: ComparisonSeries;
@@ -49,7 +42,7 @@ export function ComparisonMetricCard({ series, quoteState }: ComparisonMetricCar
           <strong>独立行情快照</strong>
           {quote && (
             <span className={quote.is_stale ? "is-stale" : ""}>
-              {quote.is_stale ? "已过期" : QUOTE_STATUS_LABEL[quote.status]}
+              {quote.is_stale ? "已过期" : QUOTE_STATUS_DISPLAY[quote.status].label}
             </span>
           )}
         </div>

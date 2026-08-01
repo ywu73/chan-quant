@@ -1,12 +1,6 @@
 import { formatPercent, formatPrice, formatQuoteTime, formatVolume } from "../format";
-import type { QuoteSnapshot, QuoteStatus } from "../types/quote";
-
-
-const STATUS_DISPLAY: Record<QuoteStatus, { label: string; tone: string }> = {
-  LIVE: { label: "实时", tone: "positive" },
-  DELAYED: { label: "延迟", tone: "warning" },
-  CLOSED: { label: "已收盘", tone: "neutral" },
-};
+import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
+import type { QuoteSnapshot } from "../types/quote";
 
 
 interface QuotePanelProps {
@@ -27,7 +21,7 @@ export function QuotePanel({
   quote,
   error,
 }: QuotePanelProps) {
-  const status = quote ? STATUS_DISPLAY[quote.status] : null;
+  const status = quote ? QUOTE_STATUS_DISPLAY[quote.status] : null;
   const changeTone = quote && quote.change < 0 ? "negative" : "positive";
 
   return (

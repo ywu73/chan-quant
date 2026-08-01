@@ -81,4 +81,35 @@ describe("quote polling lifecycle", () => {
     await vi.advanceTimersByTimeAsync(24_000);
     expect(fetchQuote).toHaveBeenCalledTimes(3);
   });
+
+  it("aborts hidden work and suppresses its late result", async () => {
+    const visibility = new FakeVisibility();
+    let requestSignal: AbortSignal | undefined;
+    let resolveRequest: ((value: QuoteSnapshot) => void) | undefined;
+    const fetchQuote = vi.fn((_symbol: string, signal?: AbortSignal) => {
+      requestSignal = signal;
+      return new Promise<QuoteSnapshot>((resolve) => {
+        resolveRequest = resolve;
+      });
+    });
+    const onQuote = vi.fn();
+
+    const stop = startQuotePolling({
+      symbol: quote.symbol,
+      fetchQuote,
+      onQuote,
+      onError: vi.fn(),
+      visibilitySource: visibility,
+    });
+    await vi.waitFor(() => expect(fetchQuote).toHaveBeenCalledOnce());
+
+    visibility.setVisibility("hidden");
+    expect(requestSignal?.aborted).toBe(true);
+    resolveRequest?.(quote);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onQuote).not.toHaveBeenCalled();
+
+    stop();
+  });
 });

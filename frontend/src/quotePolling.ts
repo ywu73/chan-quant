@@ -1,15 +1,12 @@
 import type { QuoteSnapshot } from "./types/quote";
+import { startVisiblePolling, type VisibilitySource } from "./visiblePolling";
 
 
-export interface VisibilitySource {
-  readonly visibilityState: "visible" | "hidden";
-  addEventListener(type: "visibilitychange", listener: () => void): void;
-  removeEventListener(type: "visibilitychange", listener: () => void): void;
-}
+export type { VisibilitySource } from "./visiblePolling";
 
 interface QuotePollingOptions {
   symbol: string;
-  fetchQuote: (symbol: string) => Promise<QuoteSnapshot>;
+  fetchQuote: (symbol: string, signal?: AbortSignal) => Promise<QuoteSnapshot>;
   onQuote: (quote: QuoteSnapshot) => void;
   onError: (error: unknown) => void;
   visibilitySource: VisibilitySource;
@@ -25,57 +22,20 @@ export function startQuotePolling({
   visibilitySource,
   intervalMs = 8_000,
 }: QuotePollingOptions): () => void {
-  let stopped = false;
-  let inFlight = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  const clearTimer = () => {
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      timer = undefined;
-    }
-  };
-
-  const schedule = () => {
-    clearTimer();
-    if (!stopped && visibilitySource.visibilityState === "visible") {
-      timer = setTimeout(() => void poll(), intervalMs);
-    }
-  };
-
-  const poll = async () => {
-    if (stopped || inFlight || visibilitySource.visibilityState !== "visible") {
-      return;
-    }
-    inFlight = true;
-    try {
-      const quote = await fetchQuote(symbol);
-      if (!stopped) {
-        onQuote(quote);
+  return startVisiblePolling({
+    visibilitySource,
+    intervalMs,
+    poll: async (signal) => {
+      try {
+        const quote = await fetchQuote(symbol, signal);
+        if (!signal.aborted) {
+          onQuote(quote);
+        }
+      } catch (error) {
+        if (!signal.aborted) {
+          onError(error);
+        }
       }
-    } catch (error) {
-      if (!stopped) {
-        onError(error);
-      }
-    } finally {
-      inFlight = false;
-      schedule();
-    }
-  };
-
-  const handleVisibility = () => {
-    clearTimer();
-    if (visibilitySource.visibilityState === "visible") {
-      void poll();
-    }
-  };
-
-  visibilitySource.addEventListener("visibilitychange", handleVisibility);
-  void poll();
-
-  return () => {
-    stopped = true;
-    clearTimer();
-    visibilitySource.removeEventListener("visibilitychange", handleVisibility);
-  };
+    },
+  });
 }

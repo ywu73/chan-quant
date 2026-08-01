@@ -8,14 +8,7 @@ import {
   loadMarketQuotes,
   type MarketQuoteResult,
 } from "../homeMarket";
-import type { QuoteStatus } from "../types/quote";
-
-
-const STATUS_LABEL: Record<QuoteStatus, string> = {
-  LIVE: "实时",
-  DELAYED: "延迟",
-  CLOSED: "已收盘",
-};
+import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
 
 
 const RESEARCH_MODULES = [
@@ -86,7 +79,7 @@ function MarketCard({ result }: { result: MarketQuoteResult }) {
           <small>{instrument.symbol}</small>
         </div>
         <span className={`home-market-card__status${error ? " home-market-card__status--error" : ""}`}>
-          {error ? "不可用" : quote ? STATUS_LABEL[quote.status] : "连接中"}
+          {error ? "不可用" : quote ? QUOTE_STATUS_DISPLAY[quote.status].label : "连接中"}
         </span>
       </div>
 
