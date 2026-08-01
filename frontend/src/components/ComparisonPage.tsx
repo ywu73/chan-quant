@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { fetchMarketComparison } from "../api/comparison";
 import { formatPercent } from "../format";
@@ -59,8 +59,7 @@ export function ComparisonPage() {
     setError(null);
   };
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submit = () => {
     if (symbols.length < 2) {
       setError("请先选择至少 2 个标的");
       return;
@@ -106,7 +105,7 @@ export function ComparisonPage() {
         </aside>
       </section>
 
-      <form className="comparison-controls" onSubmit={submit}>
+      <section className="comparison-controls" aria-label="走势对比条件">
         <div className="comparison-controls__search">
           <label>添加标的（2–5 个）</label>
           <InstrumentSearch onSelect={addSymbol} variant="compact" actionLabel="添加" />
@@ -119,10 +118,10 @@ export function ComparisonPage() {
           结束日期
           <input type="date" value={end} onChange={(event) => changeEnd(event.target.value)} />
         </label>
-        <button type="submit" disabled={isLoading || symbols.length < 2}>
+        <button type="button" onClick={submit} disabled={isLoading || symbols.length < 2}>
           {isLoading ? "计算中" : "开始对比"}
         </button>
-      </form>
+      </section>
 
       <div className="comparison-symbols" aria-label="已选择标的">
         {symbols.length === 0 && <span className="comparison-symbols__empty">尚未选择标的</span>}
