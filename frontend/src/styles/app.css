@@ -123,9 +123,9 @@ button {
   position: relative;
   z-index: 40;
   display: grid;
-  grid-template-columns: minmax(300px, auto) minmax(220px, 1fr) minmax(360px, 520px);
+  grid-template-columns: max-content max-content minmax(360px, 1fr);
   align-items: center;
-  gap: 28px;
+  column-gap: 44px;
   width: min(1920px, calc(100% - 40px));
   min-height: 70px;
   margin: 20px auto 0;
@@ -219,6 +219,8 @@ button {
 
 .site-header .instrument-search--compact {
   width: 100%;
+  max-width: 520px;
+  justify-self: end;
 }
 
 .site-header .instrument-search__form {
@@ -1284,16 +1286,20 @@ h2 {
 
 @media (max-width: 1320px) {
   .site-header {
-    grid-template-columns: minmax(280px, auto) minmax(210px, 1fr) minmax(330px, 430px);
-    gap: 18px;
+    grid-template-columns: max-content max-content minmax(330px, 1fr);
+    column-gap: 32px;
   }
+  .site-header .instrument-search--compact { max-width: 430px; }
   .home-market-grid { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
   .home-module-grid { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
   .metric-grid { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
 }
 
 @media (max-width: 960px) {
-  .site-header { grid-template-columns: minmax(260px, 1fr) auto; gap: 12px 20px; }
+  .site-header {
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+    gap: 12px 32px;
+  }
   .site-header .instrument-search--compact { grid-column: 1 / -1; max-width: none; }
   .home-hero { grid-template-columns: 1fr; }
   .home-market-grid { grid-template-columns: repeat(2, minmax(210px, 1fr)); }
