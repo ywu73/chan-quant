@@ -173,6 +173,54 @@ HTTP 非 200、连接失败、超时、编码或 JSON 畸形映射为 HTTP `502`
 - 每个信号满足 `structure_at <= confirmed_at <= executable_at`；没有下一根 K 线时 `executable_at=null`。
 - 事件收益使用确认后的下一根可用 K 线开盘价，目标索引为执行索引加 `N - 1`。
 
+## 多标的走势对比接口
+
+```http
+GET /api/v1/market-comparison?symbols=000001.SZ&symbols=600000.SH&start=2025-01-01&end=2026-07-31
+```
+
+`symbols` 必须包含 2–5 个不同的规范沪深代码。`start` 和 `end` 可选，均为 ISO 8601 日期，且开始日期不得晚于结束日期。v0.1 比较端点只支持 `CHAN_QUANT_DATA_SOURCE=sina`；单个 CSV 或单个快照数据包不能表达多个标的，因此会明确返回 `422`，不会把同一份文件重复标记为多个证券。
+
+响应以成功序列的共同覆盖窗口为范围，以该窗口内实际出现的交易日并集作为统一日期轴。每条序列的 `values` 与 `dates` 等长，值为相对该序列首个有效收盘价的十进制收益；缺失日为 `null`，不做前向填充：
+
+```json
+{
+  "status": "PARTIAL",
+  "requested": ["000001.SZ", "300001.SZ", "600000.SH"],
+  "succeeded": 2,
+  "failed": 1,
+  "requested_from": "2025-01-01",
+  "requested_to": "2026-07-31",
+  "common_from": "2025-01-02",
+  "common_to": "2026-07-31",
+  "dates": ["2025-01-02", "2025-01-03"],
+  "series": [
+    {
+      "instrument": {"symbol": "000001.SZ", "name": "示例", "exchange": "SZ", "asset_type": "UNKNOWN", "price_precision": 2},
+      "data_source": "sina-undocumented-kline",
+      "adjustment": "unadjusted-observed",
+      "currency": "CNY",
+      "is_mock": false,
+      "data_from": "2025-01-02",
+      "data_to": "2026-07-31",
+      "baseline_at": "2025-01-02",
+      "values": [0.0, null],
+      "cumulative_return": 0.12,
+      "max_drawdown": -0.18,
+      "max_drawdown_peak_at": "2025-09-10",
+      "max_drawdown_trough_at": "2025-11-03",
+      "coverage_ratio": 0.99,
+      "warnings": [{"code": "DATA_SOURCE_ADJUSTMENT_UNCONTRACTED", "message": "示例风险说明"}]
+    }
+  ],
+  "failures": [{"symbol": "300001.SZ", "code": "UPSTREAM_UNAVAILABLE", "message": "示例上游故障"}]
+}
+```
+
+上述数字和名称只是合同示例，不是真实市场结果。`COMPLETE` 表示所有请求标的成功，`PARTIAL` 表示至少一个成功且至少一个失败，`FAILED` 表示没有可输出的曲线。批量接口以 `200` 返回逐项失败，只有请求合同或全局数据模式不成立时返回 `422`。
+
+`max_drawdown` 使用有效收盘价序列的历史峰值到后续谷值计算，返回非正十进制值，并同时给出峰值日与谷值日。未出现收盘价回撤时为 `0`，两个日期为 `null`。这不是组合资金曲线，也不包含交易成本、分红复权修复、汇率转换或可执行交易假设。
+
 ## 证券搜索接口
 
 ```http

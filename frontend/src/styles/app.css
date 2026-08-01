@@ -609,6 +609,253 @@ button {
   line-height: 1.65;
 }
 
+.home-module-card--available {
+  border-style: solid;
+  background: linear-gradient(145deg, #fbfdff, #f2f7ff);
+}
+
+.home-module-card--available button {
+  margin-top: 15px;
+  padding: 7px 10px;
+  border: 1px solid #cbdaf0;
+  border-radius: 7px;
+  color: #315fae;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.home-module-card--available button:hover { background: #edf4ff; }
+
+.comparison-shell {
+  width: min(1600px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 18px 0 56px;
+}
+
+.comparison-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 28px 30px;
+  border: 1px solid #dce5f0;
+  border-radius: 18px;
+  background: linear-gradient(130deg, #fff, #f3f7fd);
+}
+
+.comparison-hero h1 { font-size: clamp(26px, 3vw, 40px); }
+
+.comparison-hero > div > p:last-child {
+  max-width: 760px;
+  margin: 13px 0 0;
+  color: #718097;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.comparison-hero aside {
+  display: flex;
+  min-width: 300px;
+  padding: 15px 17px;
+  border: 1px solid #ead49f;
+  border-radius: 11px;
+  flex-direction: column;
+  gap: 5px;
+  color: #82652d;
+  background: #fffbf1;
+}
+
+.comparison-hero aside strong { font-size: 12px; }
+.comparison-hero aside span { font-size: 10px; line-height: 1.55; }
+
+.comparison-controls {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.4fr) minmax(160px, 0.5fr) minmax(160px, 0.5fr) max-content;
+  align-items: end;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid #e0e6ee;
+  border-radius: 15px;
+  background: #fff;
+}
+
+.comparison-controls > label,
+.comparison-controls__search > label {
+  display: flex;
+  margin-bottom: 7px;
+  color: #67768b;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.comparison-controls input[type="date"] {
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid #d8e1ec;
+  border-radius: 9px;
+  color: #435269;
+  background: #fbfcfe;
+}
+
+.comparison-controls > button {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: #376cc5;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.comparison-controls > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.comparison-controls__search { position: relative; }
+.comparison-controls__search .instrument-search--compact { width: 100%; }
+.comparison-controls__search .instrument-search__status { position: static; margin: 5px 8px 0; }
+
+.comparison-symbols {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 4px;
+}
+
+.comparison-symbols button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid #cad8ec;
+  border-radius: 999px;
+  color: #41628f;
+  background: #f4f8ff;
+  cursor: pointer;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+}
+
+.comparison-symbols button span { color: #9b5860; font-size: 14px; }
+.comparison-symbols__empty { color: #98a4b5; font-size: 11px; }
+
+.comparison-message {
+  margin-bottom: 14px;
+  padding: 13px 15px;
+  border: 1px solid #d8e3f1;
+  border-radius: 10px;
+  color: #5b7192;
+  background: #f6f9fe;
+  font-size: 12px;
+}
+
+.comparison-message--error {
+  border-color: #e8bbb6;
+  color: #a64c44;
+  background: #fff8f7;
+}
+
+.comparison-summary {
+  display: grid;
+  grid-template-columns: 0.7fr 0.7fr 1.8fr 0.7fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.comparison-summary > div {
+  display: flex;
+  min-height: 82px;
+  padding: 14px;
+  border: 1px solid #e0e6ee;
+  border-radius: 12px;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fff;
+}
+
+.comparison-summary span { color: #8b98aa; font-size: 9px; font-weight: 750; }
+.comparison-summary strong { color: #33445d; font-size: 13px; }
+
+.comparison-chart-panel {
+  padding: 20px;
+  border: 1px solid #e0e6ee;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.comparison-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.comparison-section-heading h2 { margin: 0; color: #2c3b52; font-size: 18px; }
+.comparison-section-heading > span { color: #8a98aa; font-size: 10px; }
+.comparison-chart { width: 100%; height: 480px; margin-top: 12px; }
+
+.comparison-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.comparison-metrics article {
+  padding: 17px;
+  border: 1px solid #e0e6ee;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.comparison-metrics header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.comparison-metrics header > div { display: flex; flex-direction: column; gap: 4px; }
+.comparison-metrics header strong { color: #30415b; font-size: 14px; }
+.comparison-metrics header span { color: #8a97aa; font-size: 10px; }
+.comparison-metrics header small { color: #816b3c; font-size: 9px; }
+
+.comparison-metrics dl {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 16px 0 12px;
+}
+
+.comparison-metrics dl div { padding: 10px; border-radius: 8px; background: #f7f9fc; }
+.comparison-metrics dt { color: #929eae; font-size: 9px; }
+.comparison-metrics dd { margin: 5px 0 0; color: #34465f; font-size: 13px; font-weight: 750; }
+.comparison-metrics p { margin: 7px 0 0; color: #8794a6; font-size: 9px; line-height: 1.55; }
+.comparison-metrics .comparison-metrics__warning { color: #96702c; }
+
+.comparison-failures {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid #e8bbb6;
+  border-radius: 13px;
+  background: #fff9f8;
+}
+
+.comparison-failures h2 { margin: 0 0 12px; color: #874b47; font-size: 14px; }
+.comparison-failures p { display: flex; gap: 12px; margin: 7px 0; font-size: 10px; }
+.comparison-failures p strong { color: #703f3c; }
+.comparison-failures p span { color: #a0645f; }
+
 .home-audit-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.75fr);
@@ -1292,6 +1539,9 @@ h2 {
   .site-header .instrument-search--compact { max-width: 430px; }
   .home-market-grid { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
   .home-module-grid { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+  .comparison-controls { grid-template-columns: minmax(330px, 1fr) repeat(2, minmax(150px, 0.5fr)); }
+  .comparison-controls > button { grid-column: 1 / -1; }
+  .comparison-metrics { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
   .metric-grid { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
 }
 
@@ -1304,6 +1554,9 @@ h2 {
   .home-hero { grid-template-columns: 1fr; }
   .home-market-grid { grid-template-columns: repeat(2, minmax(210px, 1fr)); }
   .home-audit-grid { grid-template-columns: 1fr; }
+  .comparison-hero { align-items: flex-start; flex-direction: column; }
+  .comparison-hero aside { min-width: 0; width: 100%; }
+  .comparison-summary { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 760px) {
@@ -1335,6 +1588,16 @@ h2 {
   .home-timeline { grid-template-columns: 1fr; gap: 7px; }
   .home-timeline i { width: 1px; height: 16px; margin-left: 24px; }
   .home-footer { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .comparison-shell { width: min(100% - 20px, 1600px); padding-top: 10px; }
+  .comparison-hero { padding: 22px 18px; border-radius: 15px; }
+  .comparison-controls { grid-template-columns: 1fr; padding: 14px; }
+  .comparison-controls > button { grid-column: auto; }
+  .comparison-summary { grid-template-columns: 1fr; }
+  .comparison-section-heading { align-items: flex-start; flex-direction: column; }
+  .comparison-chart-panel { padding: 15px; }
+  .comparison-chart { height: 400px; }
+  .comparison-metrics { grid-template-columns: 1fr; }
+  .comparison-failures p { flex-direction: column; gap: 3px; }
   .landing-page { min-height: calc(100vh - 192px); padding: 10px 16px 32px; }
   .landing-card { padding: 32px 18px; border-radius: 18px; }
   .landing-card__examples { align-items: center; flex-direction: column; }

@@ -3,12 +3,13 @@ import type { MouseEvent } from "react";
 import { InstrumentSearch } from "./InstrumentSearch";
 
 
-type SiteSection = "market" | "research";
+type SiteSection = "market" | "comparison" | "research";
 
 
 interface SiteHeaderProps {
   activeSection: SiteSection;
   onNavigateHome: () => void;
+  onNavigateComparison: () => void;
   onNavigateResearch: () => void;
   onSelect: (symbol: string) => void;
 }
@@ -36,6 +37,7 @@ function handleInternalNavigation(
 export function SiteHeader({
   activeSection,
   onNavigateHome,
+  onNavigateComparison,
   onNavigateResearch,
   onSelect,
 }: SiteHeaderProps) {
@@ -62,6 +64,14 @@ export function SiteHeader({
           onClick={(event) => handleInternalNavigation(event, onNavigateHome)}
         >
           市场概况
+        </a>
+        <a
+          className={`site-nav__item${activeSection === "comparison" ? " site-nav__item--active" : ""}`}
+          href="/compare"
+          aria-current={activeSection === "comparison" ? "page" : undefined}
+          onClick={(event) => handleInternalNavigation(event, onNavigateComparison)}
+        >
+          走势对比
         </a>
         <a
           className={`site-nav__item${activeSection === "research" ? " site-nav__item--active" : ""}`}

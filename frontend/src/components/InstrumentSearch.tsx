@@ -7,6 +7,7 @@ import type { InstrumentIdentity } from "../types/instrument";
 interface InstrumentSearchProps {
   onSelect: (symbol: string) => void;
   variant?: "landing" | "compact";
+  actionLabel?: string;
 }
 
 
@@ -19,6 +20,7 @@ export function normalizeDirectSymbol(value: string): string | null {
 export function InstrumentSearch({
   onSelect,
   variant = "landing",
+  actionLabel,
 }: InstrumentSearchProps) {
   const inputId = useId();
   const [query, setQuery] = useState("");
@@ -114,7 +116,7 @@ export function InstrumentSearch({
           type="submit"
           disabled={!directSymbol && (isLoading || items.length !== 1)}
         >
-          {variant === "landing" ? "开始研究" : "切换"}
+          {actionLabel ?? (variant === "landing" ? "开始研究" : "切换")}
         </button>
       </form>
 

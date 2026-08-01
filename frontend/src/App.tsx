@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchDashboard } from "./api/dashboard";
 import { fetchQuote } from "./api/quote";
 import { ChanChart } from "./components/ChanChart";
+import { ComparisonPage } from "./components/ComparisonPage";
 import { DataQualityPanel } from "./components/DataQualityPanel";
 import { HomePage } from "./components/HomePage";
 import { InstrumentSearch, normalizeDirectSymbol } from "./components/InstrumentSearch";
@@ -24,6 +25,7 @@ export function symbolFromSearch(search: string): string | null {
 export type AppView =
   | { name: "home" }
   | { name: "search" }
+  | { name: "comparison" }
   | { name: "dashboard"; symbol: string };
 
 
@@ -33,6 +35,9 @@ export function appViewFromLocation(pathname: string, search: string): AppView {
     return { name: "dashboard", symbol };
   }
   const normalizedPath = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (normalizedPath === "/compare") {
+    return { name: "comparison" };
+  }
   return normalizedPath === "/search" ? { name: "search" } : { name: "home" };
 }
 
@@ -272,16 +277,26 @@ export default function App() {
     setView({ name: "search" });
   }, []);
 
+  const navigateComparison = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.pathname = "/compare";
+    url.search = "";
+    window.history.pushState({}, "", url);
+    setView({ name: "comparison" });
+  }, []);
+
   return (
     <>
       <SiteHeader
-        activeSection={view.name === "home" ? "market" : "research"}
+        activeSection={view.name === "home" ? "market" : view.name === "comparison" ? "comparison" : "research"}
         onNavigateHome={navigateHome}
+        onNavigateComparison={navigateComparison}
         onNavigateResearch={navigateResearch}
         onSelect={navigateToSymbol}
       />
-      {view.name === "home" && <HomePage />}
+      {view.name === "home" && <HomePage onNavigateComparison={navigateComparison} />}
       {view.name === "search" && <LandingPage onSelect={navigateToSymbol} />}
+      {view.name === "comparison" && <ComparisonPage />}
       {view.name === "dashboard" && (
         <ResearchWorkspace key={view.symbol} symbol={view.symbol} />
       )}

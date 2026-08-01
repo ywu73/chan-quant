@@ -14,6 +14,11 @@
 
 新浪未文档化证券建议 -> InstrumentIdentity
   -> 独立 Search API -> 初始页 / Dashboard 标的切换
+
+新浪未文档化 K 线端点 -> ComparisonInput[]
+  -> 共同覆盖窗口与交易日并集对齐
+  -> 归一化收益 / 累计收益 / 最大回撤
+  -> Market Comparison API -> 多标的走势对比页
 ```
 
 ## 模块边界
@@ -27,6 +32,7 @@
 - `backend/src/chan_quant/strategy`：指标、结构和 Independent v0.1 信号引擎。
 - `backend/src/chan_quant/backtest`：无成本的信号事件研究，不是组合回测。
 - `backend/src/chan_quant/services`：合成行情生成与 Dashboard 快照组装。
+- `backend/src/chan_quant/services/market_comparison.py`：多标的取数 seam 后的日期过滤、共同窗口、缺失日对齐、归一化收益、累计收益、最大回撤与逐项失败隔离。
 - `backend/src/chan_quant/api`：HTTP 适配层，不包含策略规则。
 - `frontend/src/api`：Dashboard 与 Quote 快照获取及错误处理。
 - `frontend/src/components/InstrumentSearch.tsx`：标的输入、搜索建议和选择交互，不计算策略规则。
@@ -34,6 +40,8 @@
 - `frontend/src/components`：纯展示组件和图表。
 
 后端是策略事实的唯一所有者。前端只消费快照，不能重新计算均线、多空、共振、信号或事件成功率。
+
+多标的比较同样由后端拥有研究计算。统一日期轴是成功序列共同覆盖窗口内的交易日并集；某个标的缺少的日期返回 `null`，不以前值、零或其他标的价格填充。每条序列使用窗口内首个有效收盘价归一化，累计收益和最大回撤均由后端给出，前端只格式化与绘图。
 
 可审计历史快照把数据身份与计算视图分开：`dataset_id` 由规范化 manifest 生成，`as_of` 只截断本次策略计算所见的 K 线，不改变数据集身份或完整数据范围。文件哈希、manifest 或任何一根 K 线变化都会形成不同身份或直接因哈希不匹配而失败。`provider-declared` 只记录提供方声明，不会被提升为独立复权审计结论。
 

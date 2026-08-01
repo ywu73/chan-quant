@@ -28,6 +28,8 @@ describe("instrument navigation", () => {
     expect(appViewFromLocation("/", "")).toEqual({ name: "home" });
     expect(appViewFromLocation("/search", "")).toEqual({ name: "search" });
     expect(appViewFromLocation("/search/", "")).toEqual({ name: "search" });
+    expect(appViewFromLocation("/compare", "")).toEqual({ name: "comparison" });
+    expect(appViewFromLocation("/compare/", "")).toEqual({ name: "comparison" });
   });
 
   it("opens a canonical dashboard symbol regardless of the entry path", () => {

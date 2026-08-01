@@ -51,8 +51,8 @@ const RESEARCH_MODULES = [
     code: "05",
     title: "走势对比",
     detail: "多标的归一化曲线、收益与回撤比较",
-    meta: "规划中",
-    tone: "neutral",
+    meta: "当前可用",
+    tone: "blue",
   },
   {
     code: "06",
@@ -121,7 +121,7 @@ function MarketCard({ result }: { result: MarketQuoteResult }) {
 }
 
 
-export function HomePage() {
+export function HomePage({ onNavigateComparison }: { onNavigateComparison: () => void }) {
   const [marketResults, setMarketResults] = useState<MarketQuoteResult[]>(
     HOME_MARKET_INSTRUMENTS.map((instrument) => ({ instrument, quote: null, error: null })),
   );
@@ -219,13 +219,19 @@ export function HomePage() {
         </div>
         <div className="home-module-grid">
           {RESEARCH_MODULES.map((module) => (
-            <article className={`home-module-card home-module-card--${module.tone}`} key={module.code}>
+            <article
+              className={`home-module-card home-module-card--${module.tone}${module.code === "05" ? " home-module-card--available" : ""}`}
+              key={module.code}
+            >
               <div className="home-module-card__topline">
                 <span>{module.code}</span>
                 <small>{module.meta}</small>
               </div>
               <h3>{module.title}</h3>
               <p>{module.detail}</p>
+              {module.code === "05" && (
+                <button type="button" onClick={onNavigateComparison}>打开走势对比</button>
+              )}
             </article>
           ))}
         </div>

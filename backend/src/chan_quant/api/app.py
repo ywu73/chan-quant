@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from typing import Literal, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,13 +16,20 @@ from chan_quant.data.sina_source import (
     SinaDataError,
     SinaUpstreamError,
     fetch_sina_kline_bars,
+    to_sina_symbol,
 )
+from chan_quant.domain.comparison import ComparisonWarning, MarketComparison
 from chan_quant.domain.dashboard import DashboardSnapshot
 from chan_quant.domain.data_quality import DataQualityRejection, DataQualityReport
 from chan_quant.domain.instrument import InstrumentIdentity, InstrumentSearchResponse
 from chan_quant.domain.quote import QuoteSnapshot
 from chan_quant.services.dashboard_builder import build_dashboard
 from chan_quant.services.demo_market import build_demo_bars
+from chan_quant.services.market_comparison import (
+    ComparisonInput,
+    ComparisonLoadError,
+    build_market_comparison,
+)
 
 app = FastAPI(
     title="Chan Quant API",
@@ -72,6 +79,59 @@ def _sina_datalen() -> int:
     return datalen
 
 
+def _sina_comparison_input(symbol: str) -> ComparisonInput:
+    try:
+        bars = fetch_sina_kline_bars(symbol, datalen=_sina_datalen())
+    except SinaUpstreamError as error:
+        raise ComparisonLoadError("UPSTREAM_UNAVAILABLE", str(error)) from error
+    except SinaDataError as error:
+        raise ComparisonLoadError("DATA_UNAVAILABLE", str(error)) from error
+
+    warnings: list[ComparisonWarning] = []
+    try:
+        instrument = fetch_sina_instrument(symbol)
+        if instrument.asset_type == "ETF":
+            adjustment = "unspecified"
+            warnings.append(
+                ComparisonWarning(
+                    code="ETF_ADJUSTMENT_UNVERIFIED",
+                    message=(
+                        "该 ETF 的复权、分红与份额折算口径尚未完成审计；"
+                        "归一化收益和回撤可能受到机械跳变影响。"
+                    ),
+                )
+            )
+        else:
+            adjustment = "unadjusted-observed"
+            warnings.append(
+                ComparisonWarning(
+                    code="DATA_SOURCE_ADJUSTMENT_UNCONTRACTED",
+                    message=(
+                        "新浪未提供固定复权口径合同；有限股票样本现场观测为不复权，"
+                        "除权除息可能影响归一化收益和回撤。"
+                    ),
+                )
+            )
+    except (SinaDataError, SinaUpstreamError):
+        instrument = _fallback_instrument(symbol, symbol)
+        adjustment = "unspecified"
+        warnings.append(
+            ComparisonWarning(
+                code="INSTRUMENT_METADATA_UNAVAILABLE",
+                message="标的元数据与复权口径不可用，比较结果仅保留规范代码。",
+            )
+        )
+
+    return ComparisonInput(
+        instrument=instrument,
+        bars=bars,
+        data_source="sina-undocumented-kline",
+        adjustment=adjustment,
+        is_mock=False,
+        warnings=warnings,
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -117,6 +177,38 @@ def instrument_search(
     except SinaUpstreamError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     except SinaDataError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get(
+    "/api/v1/market-comparison",
+    response_model=MarketComparison,
+)
+def market_comparison(
+    symbols: Annotated[list[str], Query()],
+    start: date | None = None,
+    end: date | None = None,
+) -> MarketComparison:
+    canonical_symbols = [symbol.strip().upper() for symbol in symbols]
+    if not 2 <= len(canonical_symbols) <= 5:
+        raise HTTPException(status_code=422, detail="comparison requires 2 to 5 symbols")
+    if len(set(canonical_symbols)) != len(canonical_symbols):
+        raise HTTPException(status_code=422, detail="comparison symbols must be distinct")
+    try:
+        for symbol in canonical_symbols:
+            to_sina_symbol(symbol)
+        if _configured_data_mode() != "sina":
+            raise ValueError(
+                "multi-symbol comparison currently requires CHAN_QUANT_DATA_SOURCE=sina; "
+                "single CSV and snapshot packages cannot represent multiple instruments"
+            )
+        return build_market_comparison(
+            canonical_symbols,
+            _sina_comparison_input,
+            start=start,
+            end=end,
+        )
+    except (SinaDataError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
