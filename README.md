@@ -28,6 +28,8 @@ http://127.0.0.1:5173/
 
 根地址是市场概况首页，并在全局导航中提供紧凑证券搜索。可以输入股票 `600519.SH`、ETF `513100.SH`、六位代码或名称 `纳指ETF国泰`，选择沪深股票、ETF 或指数候选后进入研究 Dashboard；完整居中搜索页保留在 `/search`，Dashboard 顶部可以继续搜索并切换标的。终端按 `Ctrl+C` 会同时关闭两个进程。
 
+首页还包含沪深 A 股日终市场温度。它只读取经过 manifest、字节数、SHA-256、逐证券身份和日期校验的 Git 外审计包；未配置或校验失败时显示拒绝原因，不会使用截图数字、匿名网页全市场扫描或未标记的旧值。
+
 也可以直接打开规范代码 URL：
 
 ```text
@@ -101,6 +103,25 @@ uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
 
 数据包格式、manifest 示例、错误代码和生成 SHA-256 的方法见 `docs/market-snapshot.md`。行情数据、授权材料和凭证不得提交到 Git。
 
+### 使用可审计日终市场温度快照
+
+市场温度数据包与单标的历史快照互相独立：
+
+```text
+/absolute/path/to/market-breadth-package/
+├── manifest.json
+├── universe.csv
+└── quotes.csv
+```
+
+```bash
+cd backend
+CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH=/absolute/path/to/market-breadth-package \
+uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
+```
+
+首版范围固定为 `CN_A_SH_SZ_V1` 沪深 A 股日终快照。涨、跌、平、12 个非零分桶、覆盖率和质量状态全部由后端计算；北交所和盘中批量行情尚未进入正式合同。完整格式见 `docs/market-breadth-package.md`，数据源研究结论见 `docs/a-share-market-breadth-research.md`。真实全市场数据、Token、授权材料与缓存不得提交到 Git。
+
 ### 使用新浪财经候选 K 线源
 
 新浪端点目前不需要 Token，但没有公开字段合同、复权说明或 SLA。本项目只从 Python 后端低频访问日 K 和单标的实时快照；实时快照使用独立接口和页面区域，**不进入策略链路**：
@@ -166,6 +187,7 @@ npm run build
 - 合成数据上的信号数量和事件统计只验证计算链路，不代表真实市场表现。
 - 新浪实时快照是未文档化 HTTP 端点的低频展示，不是 WebSocket、交易行情 SLA 或实盘性能证据。
 - 新浪标的名称建议同样是未文档化候选接口；类别 `203` 只是在 2026-07-31 ETF 样本中的现场观察，不是正式证券主数据合同或全市场扫描能力。
+- 市场温度当前只支持可审计日终包；未验证 Tushare 权限或匿名网页响应不能被描述成盘中全市场能力。
 - 可审计快照只验证本地文件、manifest 与数据结构的一致性；提供方授权和复权经济含义仍需独立证据。
 - 匿名可访问不等于获得商业使用、再分发或稳定服务授权。
 - 当前没有交易成本、滑点、涨跌停、停牌、分红处理或组合资金曲线。

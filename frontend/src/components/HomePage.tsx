@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { fetchMarketBreadth } from "../api/marketBreadth";
 import { fetchQuote } from "../api/quote";
 import { formatPercent, formatQuoteTime, formatVolume } from "../format";
 import {
@@ -9,6 +10,8 @@ import {
   type MarketQuoteResult,
 } from "../homeMarket";
 import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
+import type { MarketBreadthSnapshot } from "../types/marketBreadth";
+import { MarketBreadthPanel } from "./MarketBreadthPanel";
 
 
 const RESEARCH_MODULES = [
@@ -50,9 +53,9 @@ const RESEARCH_MODULES = [
   {
     code: "06",
     title: "市场温度",
-    detail: "全市场涨跌分布与数据口径审计",
-    meta: "规划中",
-    tone: "neutral",
+    detail: "沪深 A 股日终涨跌分布、覆盖率与数据口径审计",
+    meta: "当前可用",
+    tone: "blue",
   },
 ] as const;
 
@@ -120,8 +123,16 @@ export function HomePage({ onNavigateComparison }: { onNavigateComparison: () =>
   );
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(true);
+  const [breadthSnapshot, setBreadthSnapshot] = useState<MarketBreadthSnapshot | null>(null);
+  const [breadthError, setBreadthError] = useState<string | null>(null);
+  const [breadthRefreshVersion, setBreadthRefreshVersion] = useState(0);
+  const [isBreadthLoading, setIsBreadthLoading] = useState(true);
 
   const refresh = useCallback(() => setRefreshVersion((value) => value + 1), []);
+  const refreshBreadth = useCallback(
+    () => setBreadthRefreshVersion((value) => value + 1),
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -143,6 +154,34 @@ export function HomePage({ onNavigateComparison }: { onNavigateComparison: () =>
       controller.abort();
     };
   }, [refreshVersion]);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setIsBreadthLoading(true);
+    setBreadthSnapshot(null);
+    setBreadthError(null);
+    fetchMarketBreadth(controller.signal)
+      .then((snapshot) => {
+        if (active) {
+          setBreadthSnapshot(snapshot);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active && !(error instanceof DOMException && error.name === "AbortError")) {
+          setBreadthError(error instanceof Error ? error.message : "市场温度读取失败");
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsBreadthLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [breadthRefreshVersion]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -202,6 +241,13 @@ export function HomePage({ onNavigateComparison }: { onNavigateComparison: () =>
         </div>
       </section>
 
+      <MarketBreadthPanel
+        snapshot={breadthSnapshot}
+        isLoading={isBreadthLoading}
+        error={breadthError}
+        onRefresh={refreshBreadth}
+      />
+
       <section className="home-section" aria-labelledby="research-modules-title">
         <div className="home-section__heading">
           <div>
@@ -213,7 +259,7 @@ export function HomePage({ onNavigateComparison }: { onNavigateComparison: () =>
         <div className="home-module-grid">
           {RESEARCH_MODULES.map((module) => (
             <article
-              className={`home-module-card home-module-card--${module.tone}${module.code === "05" ? " home-module-card--available" : ""}`}
+              className={`home-module-card home-module-card--${module.tone}${module.code === "05" || module.code === "06" ? " home-module-card--available" : ""}`}
               key={module.code}
             >
               <div className="home-module-card__topline">

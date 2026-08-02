@@ -111,6 +111,28 @@ snapshot 模式要求 `CHAN_QUANT_DATA_PACKAGE_PATH` 指向仓库外目录，且
 }
 ```
 
+## 沪深 A 股日终市场温度契约
+
+```http
+GET /api/v1/market-breadth?market=CN_A_SH_SZ_V1
+```
+
+该接口与 Dashboard 的 `CHAN_QUANT_DATA_SOURCE` 独立，只读取 `CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH` 指向的 Git 外审计包。首版固定为 `mode=EOD`，universe 只含上交所主板、科创板、深交所主板和创业板的在市 A 股股票；不含北交所、B 股、基金、债券或指数。
+
+后端使用每条行情的当日 `previous_close` 与 `last_price` 通过 Decimal 复算涨跌。精确零差额只计入 `unchanged`，不进入 12 个柱状分桶；停牌、无交易、无合法参考价和缺失行情进入 `unavailable`，不得默认为平盘。
+
+```text
+sum(bin.count) = advancers + decliners
+advancers + decliners + unchanged = covered
+covered + unavailable = universe_total
+coverage_ratio = covered / universe_total
+resolution_ratio = (covered + explicitly_unavailable) / universe_total
+```
+
+`COMPLETE` 表示所有成员都已分类或有可验证的不可用原因；`PARTIAL` 表示存在未知缺行但 `resolution_ratio >= 0.995`；`FAILED` 表示低于版本化门槛或没有有效覆盖，前端不得展示分布。manifest、哈希、身份、日期、重复行或负价格不成立时返回 HTTP `422` 和结构化 `REJECTED`，不会回退到新浪、上一次快照或演示数字。
+
+完整 manifest、CSV 字段和 12 桶边界见 `market-breadth-package.md`；数据源 GO/NO-GO 证据见 `a-share-market-breadth-research.md`。
+
 ## 新浪 K 线输入契约
 
 新浪模式使用后端适配器访问未文档化匿名 K 线端点，前端不得跨域直连：

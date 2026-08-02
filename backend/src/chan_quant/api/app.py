@@ -6,6 +6,10 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from chan_quant.data.csv_source import CsvDataError, load_csv_bars
+from chan_quant.data.market_breadth_package import (
+    MarketBreadthPackageError,
+    load_market_breadth_package,
+)
 from chan_quant.data.market_snapshot import MarketSnapshotError, load_market_snapshot
 from chan_quant.data.sina_instrument_source import (
     fetch_sina_instrument,
@@ -22,6 +26,7 @@ from chan_quant.domain.comparison import ComparisonWarning, MarketComparison
 from chan_quant.domain.dashboard import DashboardSnapshot
 from chan_quant.domain.data_quality import DataQualityRejection, DataQualityReport
 from chan_quant.domain.instrument import InstrumentIdentity, InstrumentSearchResponse
+from chan_quant.domain.market_breadth import MarketBreadthRejection, MarketBreadthSnapshot
 from chan_quant.domain.quote import QuoteSnapshot
 from chan_quant.services.dashboard_builder import build_dashboard
 from chan_quant.services.demo_market import build_demo_bars
@@ -241,6 +246,33 @@ def quote(symbol: str) -> QuoteSnapshot:
         raise HTTPException(status_code=502, detail=str(error)) from error
     except SinaDataError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get(
+    "/api/v1/market-breadth",
+    response_model=MarketBreadthSnapshot,
+)
+def market_breadth(
+    market: str = Query(default="CN_A_SH_SZ_V1"),
+) -> MarketBreadthSnapshot:
+    if market != "CN_A_SH_SZ_V1":
+        rejection = MarketBreadthRejection(
+            code="MARKET_UNSUPPORTED",
+            message="market must be CN_A_SH_SZ_V1",
+        )
+        raise HTTPException(status_code=422, detail=rejection.model_dump())
+    package_path = os.getenv("CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH")
+    if not package_path:
+        rejection = MarketBreadthRejection(
+            code="MARKET_BREADTH_PACKAGE_NOT_CONFIGURED",
+            message="CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH is required",
+        )
+        raise HTTPException(status_code=422, detail=rejection.model_dump())
+    try:
+        return load_market_breadth_package(package_path)
+    except MarketBreadthPackageError as error:
+        rejection = MarketBreadthRejection(code=error.code, message=error.message)
+        raise HTTPException(status_code=422, detail=rejection.model_dump()) from error
 
 
 @app.get(

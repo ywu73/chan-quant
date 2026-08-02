@@ -19,6 +19,11 @@
   -> 共同覆盖窗口与交易日并集对齐
   -> 起始价 / 区间末收盘 / 上一交易日涨幅 / 归一化收益 / 累计收益 / 最大回撤
   -> Market Comparison API -> 多标的走势对比页 <- 独立多标的 Quote 轮询
+
+Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
+  -> 字节数 / SHA-256 / universe 身份 / session_date 校验
+  -> Decimal 涨跌分类 / 12 桶 / 覆盖率 / 质量状态
+  -> Market Breadth API -> 首页沪深 A 股日终市场温度
 ```
 
 ## 模块边界
@@ -26,6 +31,8 @@
 - `backend/src/chan_quant/domain`：稳定领域数据模型与时间约束。
 - `backend/src/chan_quant/data`：CSV、新浪 K 线、实时快照与标的元数据适配、代码映射、输入和上游错误归一化。
 - `backend/src/chan_quant/data/market_snapshot.py`：仓库外 `manifest.json + bars.csv` 的联合加载、SHA-256、标的、周期、日期范围和根数校验；失败时禁止降级。
+- `backend/src/chan_quant/data/market_breadth_package.py`：仓库外 `manifest.json + universe.csv + quotes.csv` 的联合加载、字节数、SHA-256、身份、行数和日期校验；失败时禁止降级。
+- `backend/src/chan_quant/domain/market_breadth.py`：稳定的沪深 A 股日终 universe、逐证券观察、12 个分桶、覆盖率、质量状态与拒绝合同。
 - `backend/src/chan_quant/domain/data_quality.py`：稳定的数据清单、数据集身份、完整性状态、复权依据和 reason code 合同。
 - `backend/src/chan_quant/domain/instrument.py`：稳定标的身份，包括规范代码、名称、交易所、可确认的资产类别与价格精度。
 - `backend/src/chan_quant/audit`：候选行情与参考日线、交易日历及历史快照的可复现质量审计。
@@ -33,6 +40,7 @@
 - `backend/src/chan_quant/backtest`：无成本的信号事件研究，不是组合回测。
 - `backend/src/chan_quant/services`：合成行情生成与 Dashboard 快照组装。
 - `backend/src/chan_quant/services/market_comparison.py`：多标的取数 seam 后的日期过滤、共同窗口、缺失日对齐、历史价格、上一交易日涨幅、归一化收益、累计收益、最大回撤与逐项失败隔离。
+- `backend/src/chan_quant/services/market_breadth.py`：后端唯一的涨跌分类、非零分桶、不变量、覆盖率、可解释比例和质量状态所有者。
 - `backend/src/chan_quant/api`：HTTP 适配层，不包含策略规则。
 - `frontend/src/api`：Dashboard 与 Quote 快照获取及错误处理。
 - `frontend/src/components/InstrumentSearch.tsx`：标的输入、搜索建议和选择交互，不计算策略规则。
@@ -43,6 +51,7 @@
 - `frontend/src/comparisonQuotePolling.ts`：多标的 Quote 并发、逐项失败、请求取消、页面可见性和晚到结果抑制的深模块；外部 interface 只有启动与停止。
 - `frontend/src/useComparisonQuotes.ts`：把多标的 Quote 更新映射为 React 页面状态，不实现行情计算或请求编排。
 - `frontend/src/components/ComparisonMetricCard.tsx`：并列展示后端历史指标与独立 Quote 状态，不让盘中价覆盖历史结论。
+- `frontend/src/components/MarketBreadthPanel.tsx`：只渲染后端聚合结果、审计身份和失败状态；覆盖不足时隐藏分布，不从行情行重新计算。
 - `frontend/src/components`：纯展示组件和图表。
 
 后端是策略事实的唯一所有者。前端只消费快照，不能重新计算均线、多空、共振、信号或事件成功率。
@@ -50,6 +59,8 @@
 多标的比较同样由后端拥有研究计算。统一日期轴是成功序列共同覆盖窗口内的交易日并集；某个标的缺少的日期返回 `null`，不以前值、零或其他标的价格填充。每条序列使用窗口内首个有效收盘价归一化，起始价、区间末收盘、上一交易日涨幅、累计收益和最大回撤均由后端给出，前端只格式化与绘图。
 
 可审计历史快照把数据身份与计算视图分开：`dataset_id` 由规范化 manifest 生成，`as_of` 只截断本次策略计算所见的 K 线，不改变数据集身份或完整数据范围。文件哈希、manifest 或任何一根 K 线变化都会形成不同身份或直接因哈希不匹配而失败。`provider-declared` 只记录提供方声明，不会被提升为独立复权审计结论。
+
+市场温度是独立于单标的策略和 Quote 的日终审计链路。数据包必须保留逐证券 universe 与行情输入；领域服务使用当日参考昨收和收盘价复算方向、零涨跌、12 个非零分桶和覆盖率。前端只允许根据后端 `COMPLETE/PARTIAL/FAILED` 状态决定是否渲染，不能从逐证券行情重新聚合，也不能让匿名实时 Quote 覆盖日终结果。
 
 新浪端点不允许前端直连。后端负责请求和 GB18030 兼容解码：K 线 JSON 归一化为 `MarketBar`，实时赋值语句归一化为 `QuoteSnapshot`。两条链路只在页面展示层并列，Quote 模块不接受 `MarketBar`、不调用策略引擎，也不写回 Dashboard。外部响应中的均线字段和盘中价格都不参与策略计算。
 
