@@ -20,10 +20,10 @@
   -> 起始价 / 区间末收盘 / 上一交易日涨幅 / 归一化收益 / 累计收益 / 最大回撤
   -> Market Comparison API -> 多标的走势对比页 / 固定指数表现页 <- 独立多标的 Quote 轮询
 
-Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
-  -> 字节数 / SHA-256 / universe 身份 / session_date 校验
+上交所 JSON + 深交所 XLSX -> 远端沪深 A 股 universe
+  -> 新浪逐证券行情 / 提供方 session_date / 5 分钟进程内缓存
   -> Decimal 涨跌分类 / 12 桶 / 覆盖率 / 质量状态
-  -> Market Breadth API -> 首页沪深 A 股日终市场温度
+  -> Market Breadth API -> 首页沪深 A 股远端市场温度
 ```
 
 ## 模块边界
@@ -32,9 +32,11 @@ Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
 - `backend/src/chan_quant/data`：CSV、新浪 K 线、实时快照与标的元数据适配、代码映射、输入和上游错误归一化。
 - `backend/src/chan_quant/data/market_snapshot.py`：仓库外 `manifest.json + bars.csv` 的联合加载、SHA-256、标的、周期、日期范围和根数校验；失败时禁止降级。
 - `backend/src/chan_quant/data/market_breadth_package.py`：仓库外 `manifest.json + universe.csv + quotes.csv` 的联合加载、字节数、SHA-256、身份、行数和日期校验；失败时禁止降级。
-- `backend/src/chan_quant/data/sina_market_breadth_source.py`：未文档化新浪批量行情的 GB18030 传输与逐行日期/身份解析 adapter；只供显式离线导入，不进入页面请求链路。
+- `backend/src/chan_quant/data/exchange_universe_source.py`：上交所官方 JSON 与深交所官方 XLSX 的远端 universe adapter；统一规范证券身份、板块和上市日期，并拒绝不完整列表。
+- `backend/src/chan_quant/data/sina_market_breadth_source.py`：未文档化新浪批量行情的 GB18030 传输与逐行日期/身份解析 adapter；同时供远端观测和显式离线导入使用。
+- `backend/src/chan_quant/data/remote_market_breadth.py`：远端市场温度深模块；把交易所 universe、新浪行情、交易日过滤、60 秒抓取窗口、300 秒成功缓存、强制刷新和来源风险隐藏在单一 `get()` 接口后。
 - `backend/src/chan_quant/importers/sina_market_breadth.py`：把用户提供的官方同日 universe、逐批新浪响应和原始 evidence 原子转换为 v0.2 审计包；完整重读通过前不更新 `current`。
-- `backend/src/chan_quant/domain/market_breadth.py`：稳定的沪深 A 股日终 universe、逐证券观察、12 个分桶、覆盖率、质量状态与拒绝合同。
+- `backend/src/chan_quant/domain/market_breadth.py`：稳定的沪深 A 股 universe、日终或远端逐证券观察、12 个分桶、覆盖率、质量状态与拒绝合同。
 - `backend/src/chan_quant/domain/data_quality.py`：稳定的数据清单、数据集身份、完整性状态、复权依据和 reason code 合同。
 - `backend/src/chan_quant/domain/instrument.py`：稳定标的身份，包括规范代码、名称、交易所、可确认的资产类别与价格精度。
 - `backend/src/chan_quant/audit`：候选行情与参考日线、交易日历及历史快照的可复现质量审计。
@@ -65,9 +67,9 @@ Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
 
 可审计历史快照把数据身份与计算视图分开：`dataset_id` 由规范化 manifest 生成，`as_of` 只截断本次策略计算所见的 K 线，不改变数据集身份或完整数据范围。文件哈希、manifest 或任何一根 K 线变化都会形成不同身份或直接因哈希不匹配而失败。`provider-declared` 只记录提供方声明，不会被提升为独立复权审计结论。
 
-市场温度是独立于单标的策略和 Quote 的日终审计链路。数据包必须保留逐证券 universe 与行情输入；领域服务使用当日参考昨收和收盘价复算方向、零涨跌、12 个非零分桶和覆盖率。前端只允许根据后端 `COMPLETE/PARTIAL/FAILED` 状态决定是否渲染，不能从逐证券行情重新聚合，也不能让匿名实时 Quote 覆盖日终结果。
+市场温度是独立于单标的策略和 Quote 的远端观测链路。运行时从交易所列表建立分母，并使用新浪当日参考昨收和最新价复算方向、零涨跌、12 个非零分桶和覆盖率。前端只允许根据后端 `COMPLETE/PARTIAL/FAILED` 状态决定是否渲染，不能从逐证券行情重新聚合，也不能把远端观测包装成审计快照。
 
-新浪导入器是运行时接口之外的离线深模块。首页刷新仍只读取当前已验收包，不触发全市场网络调用；新浪结构、重试、批次、时间窗口和证据文件均隐藏在导入 seam 内。未文档化来源由后端附加 `SINA_UNDOCUMENTED_SOURCE`，前端只显示该风险，不自行推断数据合同。
+远端市场温度模块是页面与三个外部来源之间的 seam。普通读取复用 300 秒进程内缓存；显式刷新重新访问交易所和新浪，失败不回退到旧值。未文档化来源与无持久证据分别由后端附加 `SINA_UNDOCUMENTED_SOURCE` 和 `REMOTE_OBSERVATION_NOT_AUDITABLE`，前端只显示风险，不自行推断数据合同。新浪导入器继续作为独立离线证据工具，但其输出不再是页面依赖。
 
 新浪端点不允许前端直连。后端负责请求和 GB18030 兼容解码：K 线 JSON 归一化为 `MarketBar`，实时赋值语句归一化为 `QuoteSnapshot`。两条链路只在页面展示层并列，Quote 模块不接受 `MarketBar`、不调用策略引擎，也不写回 Dashboard。外部响应中的均线字段和盘中价格都不参与策略计算。
 

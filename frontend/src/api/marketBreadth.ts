@@ -1,8 +1,11 @@
 import type { MarketBreadthSnapshot } from "../types/marketBreadth";
 
 
-export async function fetchMarketBreadth(signal?: AbortSignal): Promise<MarketBreadthSnapshot> {
-  const url = "/api/v1/market-breadth?market=CN_A_SH_SZ_V1";
+export async function fetchMarketBreadth(
+  signal?: AbortSignal,
+  refresh = false,
+): Promise<MarketBreadthSnapshot> {
+  const url = `/api/v1/market-breadth?market=CN_A_SH_SZ_V1${refresh ? "&refresh=true" : ""}`;
   const response = signal ? await fetch(url, { signal }) : await fetch(url);
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as {

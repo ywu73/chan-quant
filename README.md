@@ -28,7 +28,7 @@ http://127.0.0.1:5173/
 
 根地址是市场概况首页，并在全局导航中提供紧凑证券搜索。可以输入股票 `600519.SH`、ETF `513100.SH`、六位代码或名称 `纳指ETF国泰`，选择沪深股票、ETF 或指数候选后进入研究 Dashboard；完整居中搜索页保留在 `/search`，Dashboard 顶部可以继续搜索并切换标的。终端按 `Ctrl+C` 会同时关闭两个进程。
 
-首页还包含沪深 A 股日终市场温度。它只读取经过 manifest、字节数、SHA-256、逐证券身份和日期校验的 Git 外审计包；未配置或校验失败时显示拒绝原因，不会使用截图数字、匿名网页全市场扫描或未标记的旧值。
+首页还包含沪深 A 股远端市场温度。后端运行时读取上交所、深交所官方股票列表，再分批读取新浪逐证券行情并复算涨跌分布；不需要本地市场温度数据包。远端合同漂移、日期错配或覆盖不足时显示拒绝原因，不会使用截图数字、演示值或未标记的旧值。
 
 固定宽基指数表现页位于：
 
@@ -111,26 +111,17 @@ uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
 
 数据包格式、manifest 示例、错误代码和生成 SHA-256 的方法见 `docs/market-snapshot.md`。行情数据、授权材料和凭证不得提交到 Git。
 
-### 使用可审计日终市场温度快照
+### 使用远端沪深 A 股市场温度
 
-市场温度数据包与单标的历史快照互相独立：
+`./start.sh` 默认启用远端市场温度，不需要额外环境变量。后端读取上交所主板、科创板与深交所主板、创业板官方列表，再按最多 100 个代码一批读取新浪行情；北交所、B 股、基金、债券和指数不进入分母。
 
-```text
-/absolute/path/to/market-breadth-package/
-├── manifest.json
-├── universe.csv
-└── quotes.csv
-```
+首次请求会访问远端，成功结果只在进程内缓存 5 分钟。页面“刷新”使用 `refresh=true` 强制重新读取；失败不会回退到缓存旧值。结果固定标记为 `mode=OBSERVED`，并显示 `REMOTE_OBSERVATION_NOT_AUDITABLE` 与 `SINA_UNDOCUMENTED_SOURCE` 风险，因为运行时没有保存逐批原始证据，新浪端点也没有公开字段合同、SLA 或授权保证。
 
-```bash
-cd backend
-CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH=/absolute/path/to/market-breadth-package \
-uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
-```
+涨、跌、平、12 个非零分桶、覆盖率和质量状态仍全部由 Python 后端计算。完整合同见 `docs/data-contract.md`，数据源研究及产品决策边界见 `docs/a-share-market-breadth-research.md`。
 
-首版范围固定为 `CN_A_SH_SZ_V1` 沪深 A 股日终快照。涨、跌、平、12 个非零分桶、覆盖率和质量状态全部由后端计算；北交所和盘中批量行情尚未进入正式合同。完整格式见 `docs/market-breadth-package.md`，数据源研究结论见 `docs/a-share-market-breadth-research.md`。真实全市场数据、Token、授权材料与缓存不得提交到 Git。
+### 可选离线市场温度审计工具
 
-如果已经准备好同日上交所、深交所官方 `universe.csv`，可以使用实验性的新浪日终导入器生成 `market-breadth-package-v0.2`。该命令只允许本地、低频、显式执行；不会由首页刷新或 `start.sh` 自动触发。批次大小必须先在真实开市日做有界合同探测，且运行时必须确认新浪端点未文档化：
+如果需要保存原始证据用于离线复查，可以使用实验性的新浪日终导入器生成 `market-breadth-package-v0.2`。该包不再是首页运行依赖；命令只允许本地、低频、显式执行。批次大小必须先在真实开市日做有界合同探测，且运行时必须确认新浪端点未文档化：
 
 ```bash
 cd backend
@@ -144,7 +135,7 @@ uv run python -m chan_quant.importers.sina_market_breadth \
   --acknowledge-undocumented-sina
 ```
 
-导入器保存每个新浪原始批次及 SHA-256，只在完整包能重新通过后端校验时原子更新 `current`。这些证据不构成新浪字段承诺、SLA 或使用授权。完整输入合同、错误行为和验收门槛见 [`docs/sina-market-breadth-importer.md`](docs/sina-market-breadth-importer.md)。
+导入器保存每个新浪原始批次及 SHA-256，只在完整包能重新通过后端校验时原子更新 `current`。这些证据不构成新浪字段承诺、SLA 或使用授权，`current` 也不会被运行中的页面自动读取。完整输入合同、错误行为和验收门槛见 [`docs/sina-market-breadth-importer.md`](docs/sina-market-breadth-importer.md)。
 
 ### 使用新浪财经候选 K 线源
 
@@ -211,7 +202,7 @@ npm run build
 - 合成数据上的信号数量和事件统计只验证计算链路，不代表真实市场表现。
 - 新浪实时快照是未文档化 HTTP 端点的低频展示，不是 WebSocket、交易行情 SLA 或实盘性能证据。
 - 新浪标的名称建议同样是未文档化候选接口；类别 `203` 只是在 2026-07-31 ETF 样本中的现场观察，不是正式证券主数据合同或全市场扫描能力。
-- 市场温度当前只支持可审计日终包；未验证 Tushare 权限或匿名网页响应不能被描述成盘中全市场能力。
+- 市场温度是带显式风险标记的远端观测，不是可审计快照、交易级盘中全市场能力或正式行情服务。
 - 可审计快照只验证本地文件、manifest 与数据结构的一致性；提供方授权和复权经济含义仍需独立证据。
 - 匿名可访问不等于获得商业使用、再分发或稳定服务授权。
 - 当前没有交易成本、滑点、涨跌停、停牌、分红处理或组合资金曲线。

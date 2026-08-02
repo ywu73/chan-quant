@@ -68,7 +68,6 @@ def test_batch_source_returns_requested_quotes_with_provider_dates_and_raw_evide
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         capture = fetch_sina_market_breadth(
             ["000001.SZ", "600000.SH"],
-            session_date=date(2026, 7, 31),
             batch_size=100,
             client=client,
             clock=lambda: next(clock_values),
@@ -78,6 +77,7 @@ def test_batch_source_returns_requested_quotes_with_provider_dates_and_raw_evide
     assert capture.completed_at == completed_at
     assert capture.request_count == 1
     assert capture.batch_size == 100
+    assert capture.session_date == date(2026, 7, 31)
     assert len(capture.raw_batches) == 1
     assert [item.symbol for item in capture.observations] == ["000001.SZ", "600000.SH"]
     assert capture.observations[0].session_date == date(2026, 7, 31)

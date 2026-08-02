@@ -59,7 +59,7 @@ class MarketBreadthBuildInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     market: Literal["CN_A_SH_SZ_V1"]
-    mode: Literal["EOD"]
+    mode: Literal["EOD", "OBSERVED"]
     session_date: date
     universe_id: str
     universe_as_of: date
@@ -108,7 +108,7 @@ class MarketBreadthSnapshot(BaseModel):
 
     status: MarketBreadthStatus
     market: Literal["CN_A_SH_SZ_V1"]
-    mode: Literal["EOD"]
+    mode: Literal["EOD", "OBSERVED"]
     session_date: date
     universe_id: str
     universe_as_of: date

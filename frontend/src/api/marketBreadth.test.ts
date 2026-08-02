@@ -7,7 +7,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 
 describe("market breadth API client", () => {
-  it("loads the fixed audited Shanghai and Shenzhen A-share contract", async () => {
+  it("loads the remote Shanghai and Shenzhen A-share observation", async () => {
     const payload = { status: "COMPLETE", market: "CN_A_SH_SZ_V1" };
     const request = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(payload), {
@@ -22,6 +22,23 @@ describe("market breadth API client", () => {
     expect(request).toHaveBeenCalledWith(
       "/api/v1/market-breadth?market=CN_A_SH_SZ_V1",
       { signal: controller.signal },
+    );
+  });
+
+
+  it("forces a remote refresh when requested", async () => {
+    const request = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: "COMPLETE" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", request);
+
+    await fetchMarketBreadth(undefined, true);
+
+    expect(request).toHaveBeenCalledWith(
+      "/api/v1/market-breadth?market=CN_A_SH_SZ_V1&refresh=true",
     );
   });
 

@@ -111,15 +111,17 @@ snapshot 模式要求 `CHAN_QUANT_DATA_PACKAGE_PATH` 指向仓库外目录，且
 }
 ```
 
-## 沪深 A 股日终市场温度契约
+## 沪深 A 股远端市场温度契约
 
 ```http
 GET /api/v1/market-breadth?market=CN_A_SH_SZ_V1
 ```
 
-该接口与 Dashboard 的 `CHAN_QUANT_DATA_SOURCE` 独立，只读取 `CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH` 指向的 Git 外审计包。首版固定为 `mode=EOD`，universe 只含上交所主板、科创板、深交所主板和创业板的在市 A 股股票；不含北交所、B 股、基金、债券或指数。
+该接口与 Dashboard 的 `CHAN_QUANT_DATA_SOURCE` 独立，默认运行时不读取本地市场温度包。后端远端读取上交所主板、科创板以及深交所主板、创业板的官方股票列表，再按规范代码分批读取新浪行情；不含北交所、B 股、基金、债券或指数。
 
-`market-breadth-package-v0.2` 允许在相同领域合同下附带逐批原始 evidence、抓取窗口与提供方逐行日期证据。使用 `sina-hq-undocumented-observed-v0.1` 时，后端必须输出 `SINA_UNDOCUMENTED_SOURCE` 风险；证据哈希只证明本地字节完整，不升级为新浪字段承诺、SLA 或授权。页面请求不得触发新浪全市场扫描。
+成功结果只在后端进程内缓存 300 秒；`refresh=true` 绕过缓存并重新读取全部远端输入。强制刷新失败时不得回退到旧缓存。远端网络、HTTP 或合同错误返回 HTTP `502` 和结构化 `REJECTED`。
+
+运行时结果固定为 `mode=OBSERVED`，`dataset_id` 只是本次远端观测身份，不是内容哈希。后端必须输出 `REMOTE_OBSERVATION_NOT_AUDITABLE` 与 `SINA_UNDOCUMENTED_SOURCE`：没有保存逐批原始证据，新浪端点也没有公开字段合同、SLA 或授权保证，因此页面不得称为可审计快照。
 
 后端使用每条行情的当日 `previous_close` 与 `last_price` 通过 Decimal 复算涨跌。精确零差额只计入 `unchanged`，不进入 12 个柱状分桶；停牌、无交易、无合法参考价和缺失行情进入 `unavailable`，不得默认为平盘。
 
@@ -131,9 +133,9 @@ coverage_ratio = covered / universe_total
 resolution_ratio = (covered + explicitly_unavailable) / universe_total
 ```
 
-`COMPLETE` 表示所有成员都已分类或有可验证的不可用原因；`PARTIAL` 表示存在未知缺行但 `resolution_ratio >= 0.995`；`FAILED` 表示低于版本化门槛或没有有效覆盖，前端不得展示分布。manifest、哈希、身份、日期、重复行或负价格不成立时返回 HTTP `422` 和结构化 `REJECTED`，不会回退到新浪、上一次快照或演示数字。
+`COMPLETE` 表示所有成员都已分类或有可验证的不可用原因；`PARTIAL` 表示存在未知缺行但 `resolution_ratio >= 0.995`；`FAILED` 表示低于版本化门槛或没有有效覆盖，前端不得展示分布。交易所列表、身份、提供方日期、重复行或价格合同不成立时拒绝本次观测，不会回退到上一次快照或演示数字。
 
-完整 manifest、CSV 字段和 12 桶边界见 `market-breadth-package.md`；数据源 GO/NO-GO 证据见 `a-share-market-breadth-research.md`。
+离线审计包的 manifest、CSV 字段和 12 桶边界见 `market-breadth-package.md`；数据源原始证据和后续产品决策见 `a-share-market-breadth-research.md`。
 
 ## 新浪 K 线输入契约
 

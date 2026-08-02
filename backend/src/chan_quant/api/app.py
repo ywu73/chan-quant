@@ -6,11 +6,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from chan_quant.data.csv_source import CsvDataError, load_csv_bars
-from chan_quant.data.market_breadth_package import (
-    MarketBreadthPackageError,
-    load_market_breadth_package,
-)
 from chan_quant.data.market_snapshot import MarketSnapshotError, load_market_snapshot
+from chan_quant.data.remote_market_breadth import (
+    RemoteMarketBreadthError,
+    remote_market_breadth_service,
+)
 from chan_quant.data.sina_instrument_source import (
     fetch_sina_instrument,
     search_sina_instruments,
@@ -254,6 +254,7 @@ def quote(symbol: str) -> QuoteSnapshot:
 )
 def market_breadth(
     market: str = Query(default="CN_A_SH_SZ_V1"),
+    refresh: bool = Query(default=False),
 ) -> MarketBreadthSnapshot:
     if market != "CN_A_SH_SZ_V1":
         rejection = MarketBreadthRejection(
@@ -261,18 +262,11 @@ def market_breadth(
             message="market must be CN_A_SH_SZ_V1",
         )
         raise HTTPException(status_code=422, detail=rejection.model_dump())
-    package_path = os.getenv("CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH")
-    if not package_path:
-        rejection = MarketBreadthRejection(
-            code="MARKET_BREADTH_PACKAGE_NOT_CONFIGURED",
-            message="CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH is required",
-        )
-        raise HTTPException(status_code=422, detail=rejection.model_dump())
     try:
-        return load_market_breadth_package(package_path)
-    except MarketBreadthPackageError as error:
+        return remote_market_breadth_service.get(force_refresh=refresh)
+    except RemoteMarketBreadthError as error:
         rejection = MarketBreadthRejection(code=error.code, message=error.message)
-        raise HTTPException(status_code=422, detail=rejection.model_dump()) from error
+        raise HTTPException(status_code=502, detail=rejection.model_dump()) from error
 
 
 @app.get(

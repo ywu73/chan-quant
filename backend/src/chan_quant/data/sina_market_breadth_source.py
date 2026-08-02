@@ -44,6 +44,7 @@ class SinaMarketBreadthCapture:
     completed_at: datetime
     request_count: int
     batch_size: int
+    session_date: date
 
 
 def _decimal(raw: str, *, symbol: str, field: str) -> Decimal:
@@ -66,8 +67,8 @@ def _parse_batch(
     content: bytes,
     *,
     requested_symbols: Sequence[str],
-    expected_session_date: date,
-) -> dict[str, BreadthObservation]:
+    expected_session_date: date | None,
+) -> tuple[dict[str, BreadthObservation], date]:
     try:
         text = content.decode("gb18030")
     except UnicodeDecodeError as error:
@@ -78,6 +79,7 @@ def _parse_batch(
 
     expected_by_sina = {to_sina_symbol(symbol): symbol for symbol in requested_symbols}
     parsed: dict[str, BreadthObservation] = {}
+    observed_session_date = expected_session_date
     for line_number, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
@@ -119,10 +121,12 @@ def _parse_batch(
                 "SINA_BREADTH_SESSION_DATE_INVALID",
                 f"{symbol} quote date is invalid",
             ) from error
-        if quote_date != expected_session_date:
+        if observed_session_date is None:
+            observed_session_date = quote_date
+        if quote_date != observed_session_date:
             raise SinaMarketBreadthSourceError(
                 "SINA_BREADTH_SESSION_DATE_MISMATCH",
-                f"{symbol} quote date {quote_date} does not match {expected_session_date}",
+                f"{symbol} quote date {quote_date} does not match {observed_session_date}",
             )
         try:
             quote_time_type.fromisoformat(fields[31])
@@ -153,13 +157,18 @@ def _parse_batch(
             "SINA_BREADTH_MISSING_SYMBOL",
             f"Sina response omitted {missing[0]}",
         )
-    return parsed
+    if observed_session_date is None:
+        raise SinaMarketBreadthSourceError(
+            "SINA_BREADTH_SESSION_DATE_MISSING",
+            "Sina breadth response did not expose a provider session date",
+        )
+    return parsed, observed_session_date
 
 
 def fetch_sina_market_breadth(
     symbols: Sequence[str],
     *,
-    session_date: date,
+    session_date: date | None = None,
     batch_size: int = 100,
     client: httpx.Client | None = None,
     clock: Callable[[], datetime] | None = None,
@@ -194,6 +203,7 @@ def fetch_sina_market_breadth(
     http_client = client or httpx.Client(follow_redirects=False)
     observations: dict[str, BreadthObservation] = {}
     raw_batches: list[SinaRawBatch] = []
+    observed_session_date = session_date
     try:
         for offset in range(0, len(canonical_symbols), batch_size):
             batch = canonical_symbols[offset : offset + batch_size]
@@ -247,10 +257,10 @@ def fetch_sina_market_breadth(
                     f"Sina breadth request returned HTTP {response.status_code}",
                 )
             received_at = now()
-            parsed = _parse_batch(
+            parsed, observed_session_date = _parse_batch(
                 response.content,
                 requested_symbols=batch,
-                expected_session_date=session_date,
+                expected_session_date=observed_session_date,
             )
             observations.update(parsed)
             raw_batches.append(
@@ -274,4 +284,5 @@ def fetch_sina_market_breadth(
         completed_at=completed_at,
         request_count=len(raw_batches),
         batch_size=batch_size,
+        session_date=observed_session_date,
     )

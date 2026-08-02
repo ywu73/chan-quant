@@ -11,7 +11,7 @@ market-breadth-package/
 └── quotes.csv
 ```
 
-后端先检查 manifest、文件字节数和 SHA-256，再检查 CSV 表头、行数、身份、日期与重复记录。任何不一致返回 HTTP `422 REJECTED`，不会降级到匿名行情、演示值或旧快照。
+离线加载器先检查 manifest、文件字节数和 SHA-256，再检查 CSV 表头、行数、身份、日期与重复记录。任何不一致都拒绝读取，不会降级到演示值或旧快照。该数据包保留为离线复查工具，不是首页运行依赖。
 
 `market-breadth-package-v0.2` 在相同核心 CSV 合同上增加 `evidence/` 原始输入、逐文件字节数/SHA-256、提供方逐行日期证据、抓取窗口、批次大小和请求数量。v0.1 继续兼容；v0.2 任一 evidence 被移动、修改或替换为符号链接后都会拒绝读取。实验性的新浪日终导入流程见 [`sina-market-breadth-importer.md`](sina-market-breadth-importer.md)。
 
@@ -98,16 +98,11 @@ symbol,session_date,previous_close,last_price,unavailable_reason,provider_change
 
 `market-breadth-quality-v0.1` 的可解释比例门槛为 `0.995`。`FAILED` 响应仍保留审计计数和问题原因，但前端不渲染柱状分布。
 
-## 启动与接口
+## 离线加载与验证
 
 ```bash
 cd backend
-CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH=/absolute/path/to/market-breadth-package \
-uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
+uv run python -c 'from chan_quant.data.market_breadth_package import load_market_breadth_package; print(load_market_breadth_package("/absolute/path/to/market-breadth-package").status)'
 ```
 
-```http
-GET /api/v1/market-breadth?market=CN_A_SH_SZ_V1
-```
-
-自动下载 Tushare 日终数据、Tushare 盘中 `rt_k`、北交所 `.BJ` 和匿名网页全市场扫描都不属于当前运行时合同。
+运行中的 `GET /api/v1/market-breadth` 使用交易所列表与新浪行情构建远端观测，不读取此目录。自动下载 Tushare 日终数据、Tushare 盘中 `rt_k` 和北交所 `.BJ` 仍不属于当前运行时合同。

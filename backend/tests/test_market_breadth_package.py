@@ -11,6 +11,7 @@ from chan_quant.data.market_breadth_package import (
     MarketBreadthPackageError,
     load_market_breadth_package,
 )
+from chan_quant.data.remote_market_breadth import RemoteMarketBreadthError
 
 
 def _write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
@@ -155,17 +156,27 @@ def test_auditable_market_breadth_package_recomputes_distribution_and_identity(
     )
 
 
-def test_market_breadth_endpoint_exposes_audited_eod_snapshot(
+def test_market_breadth_endpoint_exposes_remote_snapshot(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     package = tmp_path / "breadth"
     _write_package(package)
-    monkeypatch.setenv("CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH", str(package))
+    snapshot = load_market_breadth_package(package).model_copy(update={"mode": "OBSERVED"})
+
+    class FakeRemoteService:
+        def get(self, *, force_refresh: bool = False):
+            assert force_refresh is True
+            return snapshot
+
+    monkeypatch.setattr(
+        "chan_quant.api.app.remote_market_breadth_service",
+        FakeRemoteService(),
+    )
 
     response = TestClient(app).get(
         "/api/v1/market-breadth",
-        params={"market": "CN_A_SH_SZ_V1"},
+        params={"market": "CN_A_SH_SZ_V1", "refresh": "true"},
     )
 
     assert response.status_code == 200
@@ -230,18 +241,28 @@ def test_market_breadth_package_rejects_evidence_symlink_outside_package(
     assert captured.value.code == "EVIDENCE_PATH_INVALID"
 
 
-def test_market_breadth_endpoint_fails_closed_when_package_is_not_configured(
+def test_market_breadth_endpoint_maps_remote_failure_without_stale_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH", raising=False)
+    class FailingRemoteService:
+        def get(self, *, force_refresh: bool = False):
+            raise RemoteMarketBreadthError(
+                "SINA_BREADTH_HTTP_ERROR",
+                "Sina breadth request returned HTTP 503",
+            )
+
+    monkeypatch.setattr(
+        "chan_quant.api.app.remote_market_breadth_service",
+        FailingRemoteService(),
+    )
 
     response = TestClient(app).get("/api/v1/market-breadth")
 
-    assert response.status_code == 422
+    assert response.status_code == 502
     assert response.json()["detail"] == {
         "status": "REJECTED",
-        "code": "MARKET_BREADTH_PACKAGE_NOT_CONFIGURED",
-        "message": "CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH is required",
+        "code": "SINA_BREADTH_HTTP_ERROR",
+        "message": "Sina breadth request returned HTTP 503",
     }
 
 

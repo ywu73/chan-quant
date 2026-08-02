@@ -27,7 +27,7 @@ const bins: MarketBreadthSnapshot["bins"] = binRows.map(
 const snapshot = {
   status: "COMPLETE",
   market: "CN_A_SH_SZ_V1",
-  mode: "EOD",
+  mode: "OBSERVED",
   session_date: "2026-07-31",
   universe_id: "official-sh-sz-test-2026-07-31",
   universe_as_of: "2026-07-31",
@@ -59,7 +59,7 @@ describe("MarketBreadthPanel", () => {
     );
 
     expect(markup).toContain("沪深 A 股市场温度");
-    expect(markup).toContain("日终审计快照");
+    expect(markup).toContain("新浪远端观测");
     expect(markup).toContain("涨 1");
     expect(markup).toContain("跌 1");
     expect(markup).toContain("平 1");
@@ -121,17 +121,17 @@ describe("MarketBreadthPanel", () => {
   });
 
 
-  it("shows configuration or package rejection without stale values", () => {
+  it("shows a remote rejection without stale values", () => {
     const markup = renderToStaticMarkup(
       <MarketBreadthPanel
         snapshot={null}
         isLoading={false}
-        error="市场温度不可用（HTTP 422）：审计包未配置"
+        error="市场温度不可用（HTTP 502）：新浪远端读取失败"
         onRefresh={() => {}}
       />,
     );
 
-    expect(markup).toContain("市场温度不可用（HTTP 422）：审计包未配置");
+    expect(markup).toContain("市场温度不可用（HTTP 502）：新浪远端读取失败");
     expect(markup).not.toContain('data-testid="market-breadth-chart"');
   });
 });

@@ -53,7 +53,7 @@ const RESEARCH_MODULES = [
   {
     code: "06",
     title: "市场温度",
-    detail: "沪深 A 股日终涨跌分布、覆盖率与数据口径审计",
+    detail: "沪深 A 股远端涨跌分布、覆盖率与来源风险提示",
     meta: "当前可用",
     tone: "blue",
   },
@@ -161,7 +161,7 @@ export function HomePage({ onNavigateComparison }: { onNavigateComparison: () =>
     setIsBreadthLoading(true);
     setBreadthSnapshot(null);
     setBreadthError(null);
-    fetchMarketBreadth(controller.signal)
+    fetchMarketBreadth(controller.signal, breadthRefreshVersion > 0)
       .then((snapshot) => {
         if (active) {
           setBreadthSnapshot(snapshot);

@@ -28,7 +28,7 @@ export interface MarketBreadthIssue {
 export interface MarketBreadthSnapshot {
   status: MarketBreadthStatus;
   market: "CN_A_SH_SZ_V1";
-  mode: "EOD";
+  mode: "EOD" | "OBSERVED";
   session_date: string;
   universe_id: string;
   universe_as_of: string;

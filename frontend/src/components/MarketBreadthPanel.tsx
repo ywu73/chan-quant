@@ -31,11 +31,11 @@ export function MarketBreadthPanel({
     <section className="home-section home-breadth" aria-labelledby="market-breadth-title">
       <div className="home-section__heading home-breadth__heading">
         <div>
-          <p className="home-section__eyebrow">MARKET BREADTH · AUDITABLE EOD</p>
+          <p className="home-section__eyebrow">MARKET BREADTH · REMOTE OBSERVATION</p>
           <h2 id="market-breadth-title">沪深 A 股市场温度</h2>
         </div>
         <div className="home-section__actions">
-          <span className="home-breadth__mode">日终审计快照</span>
+          <span className="home-breadth__mode">新浪远端观测</span>
           <button type="button" onClick={onRefresh} disabled={isLoading}>
             {isLoading ? "读取中" : "刷新"}
           </button>
@@ -44,14 +44,14 @@ export function MarketBreadthPanel({
 
       {error ? (
         <div className="home-breadth__state home-breadth__state--error">
-          <strong>审计包未通过读取</strong>
+          <strong>远端市场温度读取失败</strong>
           <span>{error}</span>
-          <small>不会回退到匿名行情、演示数字或上一次未标记的旧值。</small>
+          <small>不会回退到演示数字或上一次未标记的旧值。</small>
         </div>
       ) : !snapshot ? (
         <div className="home-breadth__state">
-          <strong>{isLoading ? "正在校验市场温度审计包…" : "尚无可展示的市场温度"}</strong>
-          <span>需要在后端配置 Git 外的 manifest.json、universe.csv 与 quotes.csv。</span>
+          <strong>{isLoading ? "正在读取远端市场温度…" : "尚无可展示的市场温度"}</strong>
+          <span>后端将读取交易所股票列表与新浪逐证券行情。</span>
         </div>
       ) : (
         <>
@@ -114,7 +114,7 @@ export function MarketBreadthPanel({
             </p>
           )}
           <p className="home-section__note home-breadth__note">
-            后端使用当日昨收与收盘价复算；零涨跌单列，停牌和无合法参考价不计为平盘。
+            后端使用新浪当日昨收与最新价复算；零涨跌单列，停牌和无合法参考价不计为平盘。
           </p>
         </>
       )}
