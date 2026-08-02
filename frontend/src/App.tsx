@@ -6,6 +6,7 @@ import { ChanChart } from "./components/ChanChart";
 import { ComparisonPage } from "./components/ComparisonPage";
 import { DataQualityPanel } from "./components/DataQualityPanel";
 import { HomePage } from "./components/HomePage";
+import { IndexPerformancePage } from "./components/IndexPerformancePage";
 import { InstrumentSearch, normalizeDirectSymbol } from "./components/InstrumentSearch";
 import { MetricCard } from "./components/MetricCard";
 import { PerformanceCard } from "./components/PerformanceCard";
@@ -24,6 +25,7 @@ export function symbolFromSearch(search: string): string | null {
 
 export type AppView =
   | { name: "home" }
+  | { name: "indices" }
   | { name: "search" }
   | { name: "comparison" }
   | { name: "dashboard"; symbol: string };
@@ -37,6 +39,9 @@ export function appViewFromLocation(pathname: string, search: string): AppView {
   const normalizedPath = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   if (normalizedPath === "/compare") {
     return { name: "comparison" };
+  }
+  if (normalizedPath === "/indices") {
+    return { name: "indices" };
   }
   return normalizedPath === "/search" ? { name: "search" } : { name: "home" };
 }
@@ -285,16 +290,32 @@ export default function App() {
     setView({ name: "comparison" });
   }, []);
 
+  const navigateIndices = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.pathname = "/indices";
+    url.search = "";
+    window.history.pushState({}, "", url);
+    setView({ name: "indices" });
+  }, []);
+
   return (
     <>
       <SiteHeader
-        activeSection={view.name === "home" ? "market" : view.name === "comparison" ? "comparison" : "research"}
+        activeSection={view.name === "home"
+          ? "market"
+          : view.name === "indices"
+            ? "indices"
+            : view.name === "comparison"
+              ? "comparison"
+              : "research"}
         onNavigateHome={navigateHome}
+        onNavigateIndices={navigateIndices}
         onNavigateComparison={navigateComparison}
         onNavigateResearch={navigateResearch}
         onSelect={navigateToSymbol}
       />
       {view.name === "home" && <HomePage onNavigateComparison={navigateComparison} />}
+      {view.name === "indices" && <IndexPerformancePage />}
       {view.name === "search" && <LandingPage onSelect={navigateToSymbol} />}
       {view.name === "comparison" && <ComparisonPage />}
       {view.name === "dashboard" && (

@@ -36,6 +36,8 @@ describe("instrument navigation", () => {
 
   it("uses the root as the market overview and keeps search on its manual path", () => {
     expect(appViewFromLocation("/", "")).toEqual({ name: "home" });
+    expect(appViewFromLocation("/indices", "")).toEqual({ name: "indices" });
+    expect(appViewFromLocation("/indices/", "")).toEqual({ name: "indices" });
     expect(appViewFromLocation("/search", "")).toEqual({ name: "search" });
     expect(appViewFromLocation("/search/", "")).toEqual({ name: "search" });
     expect(appViewFromLocation("/compare", "")).toEqual({ name: "comparison" });

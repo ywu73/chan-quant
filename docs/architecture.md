@@ -18,7 +18,7 @@
 新浪未文档化 K 线端点 -> ComparisonInput[]
   -> 共同覆盖窗口与交易日并集对齐
   -> 起始价 / 区间末收盘 / 上一交易日涨幅 / 归一化收益 / 累计收益 / 最大回撤
-  -> Market Comparison API -> 多标的走势对比页 <- 独立多标的 Quote 轮询
+  -> Market Comparison API -> 多标的走势对比页 / 固定指数表现页 <- 独立多标的 Quote 轮询
 
 Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
   -> 字节数 / SHA-256 / universe 身份 / session_date 校验
@@ -53,6 +53,9 @@ Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
 - `frontend/src/comparisonQuotePolling.ts`：多标的 Quote 并发、逐项失败、请求取消、页面可见性和晚到结果抑制的深模块；外部 interface 只有启动与停止。
 - `frontend/src/useComparisonQuotes.ts`：把多标的 Quote 更新映射为 React 页面状态，不实现行情计算或请求编排。
 - `frontend/src/components/ComparisonMetricCard.tsx`：并列展示后端历史指标与独立 Quote 状态，不让盘中价覆盖历史结论。
+- `frontend/src/indexPerformance.ts`：只负责本地日历日期区间和快捷选项，不计算任何历史收益或回撤。
+- `frontend/src/components/IndexPerformancePage.tsx`：编排 8 个共享沪深宽基身份的比较请求与独立 Quote 状态；固定卡片顺序，逐项失败隔离。
+- `frontend/src/components/IndexPerformanceCard.tsx`：并列格式化后端历史指标与当前行情，明确区分区间末收盘和独立 Quote。
 - `frontend/src/components/MarketBreadthPanel.tsx`：只渲染后端聚合结果、审计身份和失败状态；覆盖不足时隐藏分布，不从行情行重新计算。
 - `frontend/src/components`：纯展示组件和图表。
 

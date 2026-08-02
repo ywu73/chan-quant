@@ -3,12 +3,13 @@ import type { MouseEvent } from "react";
 import { InstrumentSearch } from "./InstrumentSearch";
 
 
-type SiteSection = "market" | "comparison" | "research";
+type SiteSection = "market" | "indices" | "comparison" | "research";
 
 
 interface SiteHeaderProps {
   activeSection: SiteSection;
   onNavigateHome: () => void;
+  onNavigateIndices: () => void;
   onNavigateComparison: () => void;
   onNavigateResearch: () => void;
   onSelect: (symbol: string) => void;
@@ -37,6 +38,7 @@ function handleInternalNavigation(
 export function SiteHeader({
   activeSection,
   onNavigateHome,
+  onNavigateIndices,
   onNavigateComparison,
   onNavigateResearch,
   onSelect,
@@ -64,6 +66,14 @@ export function SiteHeader({
           onClick={(event) => handleInternalNavigation(event, onNavigateHome)}
         >
           市场概况
+        </a>
+        <a
+          className={`site-nav__item${activeSection === "indices" ? " site-nav__item--active" : ""}`}
+          href="/indices"
+          aria-current={activeSection === "indices" ? "page" : undefined}
+          onClick={(event) => handleInternalNavigation(event, onNavigateIndices)}
+        >
+          指数表现
         </a>
         <a
           className={`site-nav__item${activeSection === "comparison" ? " site-nav__item--active" : ""}`}
