@@ -150,7 +150,9 @@ def test_auditable_market_breadth_package_recomputes_distribution_and_identity(
     assert first.unchanged == 1
     assert first.unavailable_reasons == {"SUSPENDED": 1}
     assert first.dataset_id == second.dataset_id
-    assert first.dataset_id.startswith("sha256:")
+    assert first.dataset_id == (
+        "sha256:b137babb37fc65556e1f6e1a30262760fce8c274a43f2f35c6bae1d1917fd187"
+    )
 
 
 def test_market_breadth_endpoint_exposes_audited_eod_snapshot(
@@ -186,6 +188,46 @@ def test_market_breadth_package_rejects_tampered_quote_rows(tmp_path: Path) -> N
 
     with pytest.raises(MarketBreadthPackageError, match="QUOTES_HASH_MISMATCH"):
         load_market_breadth_package(package)
+
+
+def test_market_breadth_package_rejects_evidence_symlink_outside_package(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "breadth"
+    manifest = _write_package(package)
+    outside_evidence = tmp_path / "outside-sina-response.txt"
+    outside_evidence.write_bytes(b'var hq_str_sz000001="fixture";\n')
+    evidence_dir = package / "evidence"
+    evidence_dir.mkdir()
+    evidence_path = evidence_dir / "sina-quotes-batch-0001.txt"
+    evidence_path.symlink_to(outside_evidence)
+    manifest.update(
+        {
+            "schema_version": "market-breadth-package-v0.2",
+            "session_date_evidence": "provider-row-date",
+            "snapshot_started_at": "2026-07-31T15:05:00+08:00",
+            "snapshot_completed_at": "2026-07-31T15:05:01+08:00",
+            "quote_contract": "sina-hq-undocumented-observed-v0.1",
+            "request_batch_size": 4,
+            "request_count": 1,
+            "evidence_files": [
+                {
+                    "path": "evidence/sina-quotes-batch-0001.txt",
+                    "bytes": outside_evidence.stat().st_size,
+                    "sha256": hashlib.sha256(outside_evidence.read_bytes()).hexdigest(),
+                }
+            ],
+        }
+    )
+    (package / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(MarketBreadthPackageError) as captured:
+        load_market_breadth_package(package)
+
+    assert captured.value.code == "EVIDENCE_PATH_INVALID"
 
 
 def test_market_breadth_endpoint_fails_closed_when_package_is_not_configured(

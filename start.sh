@@ -51,6 +51,11 @@ export CHAN_QUANT_SINA_DATALEN="${CHAN_QUANT_SINA_DATALEN:-2000}"
 
 echo "Starting Chan Quant..."
 echo "Data source: $CHAN_QUANT_DATA_SOURCE"
+if [[ -n "${CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH:-}" ]]; then
+  echo "Market breadth package: $CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH"
+else
+  echo "Market breadth package: not configured (the panel will fail closed)"
+fi
 echo "Page: http://127.0.0.1:5173/"
 echo "Press Ctrl+C to stop both backend and frontend."
 

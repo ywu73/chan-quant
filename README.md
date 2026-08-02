@@ -122,6 +122,22 @@ uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
 
 首版范围固定为 `CN_A_SH_SZ_V1` 沪深 A 股日终快照。涨、跌、平、12 个非零分桶、覆盖率和质量状态全部由后端计算；北交所和盘中批量行情尚未进入正式合同。完整格式见 `docs/market-breadth-package.md`，数据源研究结论见 `docs/a-share-market-breadth-research.md`。真实全市场数据、Token、授权材料与缓存不得提交到 Git。
 
+如果已经准备好同日上交所、深交所官方 `universe.csv`，可以使用实验性的新浪日终导入器生成 `market-breadth-package-v0.2`。该命令只允许本地、低频、显式执行；不会由首页刷新或 `start.sh` 自动触发。批次大小必须先在真实开市日做有界合同探测，且运行时必须确认新浪端点未文档化：
+
+```bash
+cd backend
+uv run python -m chan_quant.importers.sina_market_breadth \
+  --session-date YYYY-MM-DD \
+  --universe-csv /absolute/path/to/universe.csv \
+  --universe-id official-sh-sz-YYYY-MM-DD \
+  --universe-source 'SSE and SZSE official same-session exports' \
+  --output-root /absolute/path/to/market-breadth \
+  --batch-size <validated-size> \
+  --acknowledge-undocumented-sina
+```
+
+导入器保存每个新浪原始批次及 SHA-256，只在完整包能重新通过后端校验时原子更新 `current`。这些证据不构成新浪字段承诺、SLA 或使用授权。完整输入合同、错误行为和验收门槛见 [`docs/sina-market-breadth-importer.md`](docs/sina-market-breadth-importer.md)。
+
 ### 使用新浪财经候选 K 线源
 
 新浪端点目前不需要 Token，但没有公开字段合同、复权说明或 SLA。本项目只从 Python 后端低频访问日 K 和单标的实时快照；实时快照使用独立接口和页面区域，**不进入策略链路**：

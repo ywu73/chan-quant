@@ -13,6 +13,8 @@ market-breadth-package/
 
 后端先检查 manifest、文件字节数和 SHA-256，再检查 CSV 表头、行数、身份、日期与重复记录。任何不一致返回 HTTP `422 REJECTED`，不会降级到匿名行情、演示值或旧快照。
 
+`market-breadth-package-v0.2` 在相同核心 CSV 合同上增加 `evidence/` 原始输入、逐文件字节数/SHA-256、提供方逐行日期证据、抓取窗口、批次大小和请求数量。v0.1 继续兼容；v0.2 任一 evidence 被移动、修改或替换为符号链接后都会拒绝读取。实验性的新浪日终导入流程见 [`sina-market-breadth-importer.md`](sina-market-breadth-importer.md)。
+
 ## manifest.json
 
 ```json

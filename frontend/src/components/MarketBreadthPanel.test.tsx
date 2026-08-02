@@ -98,6 +98,29 @@ describe("MarketBreadthPanel", () => {
   });
 
 
+  it("renders backend provenance warnings without hiding an accepted distribution", () => {
+    const markup = renderToStaticMarkup(
+      <MarketBreadthPanel
+        snapshot={{
+          ...snapshot,
+          source: "sina-undocumented-eod-import",
+          issues: [{
+            code: "SINA_UNDOCUMENTED_SOURCE",
+            severity: "WARNING",
+            message: "行情来自未文档化新浪网页端点。",
+          }],
+        }}
+        isLoading={false}
+        error={null}
+        onRefresh={() => {}}
+      />,
+    );
+
+    expect(markup).toContain("行情来自未文档化新浪网页端点。");
+    expect(markup).toContain('data-testid="market-breadth-chart"');
+  });
+
+
   it("shows configuration or package rejection without stale values", () => {
     const markup = renderToStaticMarkup(
       <MarketBreadthPanel

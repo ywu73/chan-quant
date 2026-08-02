@@ -32,6 +32,8 @@ Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
 - `backend/src/chan_quant/data`：CSV、新浪 K 线、实时快照与标的元数据适配、代码映射、输入和上游错误归一化。
 - `backend/src/chan_quant/data/market_snapshot.py`：仓库外 `manifest.json + bars.csv` 的联合加载、SHA-256、标的、周期、日期范围和根数校验；失败时禁止降级。
 - `backend/src/chan_quant/data/market_breadth_package.py`：仓库外 `manifest.json + universe.csv + quotes.csv` 的联合加载、字节数、SHA-256、身份、行数和日期校验；失败时禁止降级。
+- `backend/src/chan_quant/data/sina_market_breadth_source.py`：未文档化新浪批量行情的 GB18030 传输与逐行日期/身份解析 adapter；只供显式离线导入，不进入页面请求链路。
+- `backend/src/chan_quant/importers/sina_market_breadth.py`：把用户提供的官方同日 universe、逐批新浪响应和原始 evidence 原子转换为 v0.2 审计包；完整重读通过前不更新 `current`。
 - `backend/src/chan_quant/domain/market_breadth.py`：稳定的沪深 A 股日终 universe、逐证券观察、12 个分桶、覆盖率、质量状态与拒绝合同。
 - `backend/src/chan_quant/domain/data_quality.py`：稳定的数据清单、数据集身份、完整性状态、复权依据和 reason code 合同。
 - `backend/src/chan_quant/domain/instrument.py`：稳定标的身份，包括规范代码、名称、交易所、可确认的资产类别与价格精度。
@@ -61,6 +63,8 @@ Git 外 market-breadth-package（manifest + universe.csv + quotes.csv）
 可审计历史快照把数据身份与计算视图分开：`dataset_id` 由规范化 manifest 生成，`as_of` 只截断本次策略计算所见的 K 线，不改变数据集身份或完整数据范围。文件哈希、manifest 或任何一根 K 线变化都会形成不同身份或直接因哈希不匹配而失败。`provider-declared` 只记录提供方声明，不会被提升为独立复权审计结论。
 
 市场温度是独立于单标的策略和 Quote 的日终审计链路。数据包必须保留逐证券 universe 与行情输入；领域服务使用当日参考昨收和收盘价复算方向、零涨跌、12 个非零分桶和覆盖率。前端只允许根据后端 `COMPLETE/PARTIAL/FAILED` 状态决定是否渲染，不能从逐证券行情重新聚合，也不能让匿名实时 Quote 覆盖日终结果。
+
+新浪导入器是运行时接口之外的离线深模块。首页刷新仍只读取当前已验收包，不触发全市场网络调用；新浪结构、重试、批次、时间窗口和证据文件均隐藏在导入 seam 内。未文档化来源由后端附加 `SINA_UNDOCUMENTED_SOURCE`，前端只显示该风险，不自行推断数据合同。
 
 新浪端点不允许前端直连。后端负责请求和 GB18030 兼容解码：K 线 JSON 归一化为 `MarketBar`，实时赋值语句归一化为 `QuoteSnapshot`。两条链路只在页面展示层并列，Quote 模块不接受 `MarketBar`、不调用策略引擎，也不写回 Dashboard。外部响应中的均线字段和盘中价格都不参与策略计算。
 

@@ -64,6 +64,14 @@ export function MarketBreadthPanel({
             <span>{snapshot.source}</span>
           </div>
 
+          {canShowDistribution && snapshot.issues.length > 0 && (
+            <div className="home-breadth__warnings" aria-label="市场温度来源与质量提示">
+              {snapshot.issues.map((issue) => (
+                <p className="home-breadth__warning" key={issue.code}>{issue.message}</p>
+              ))}
+            </div>
+          )}
+
           <div className="home-breadth__totals" aria-label="市场涨跌统计">
             <strong className="home-breadth__advance">涨 {snapshot.advancers}</strong>
             <strong className="home-breadth__decline">跌 {snapshot.decliners}</strong>

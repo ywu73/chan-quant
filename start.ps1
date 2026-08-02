@@ -64,6 +64,12 @@ if (-not $env:CHAN_QUANT_SINA_DATALEN) {
 
 Write-Host "Starting Chan Quant..."
 Write-Host "Data source: $env:CHAN_QUANT_DATA_SOURCE"
+if ($env:CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH) {
+    Write-Host "Market breadth package: $env:CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH"
+}
+else {
+    Write-Host "Market breadth package: not configured (the panel will fail closed)"
+}
 Write-Host "Page: http://127.0.0.1:5173/"
 Write-Host "Press Ctrl+C to stop both backend and frontend."
 

@@ -119,6 +119,8 @@ GET /api/v1/market-breadth?market=CN_A_SH_SZ_V1
 
 该接口与 Dashboard 的 `CHAN_QUANT_DATA_SOURCE` 独立，只读取 `CHAN_QUANT_MARKET_BREADTH_PACKAGE_PATH` 指向的 Git 外审计包。首版固定为 `mode=EOD`，universe 只含上交所主板、科创板、深交所主板和创业板的在市 A 股股票；不含北交所、B 股、基金、债券或指数。
 
+`market-breadth-package-v0.2` 允许在相同领域合同下附带逐批原始 evidence、抓取窗口与提供方逐行日期证据。使用 `sina-hq-undocumented-observed-v0.1` 时，后端必须输出 `SINA_UNDOCUMENTED_SOURCE` 风险；证据哈希只证明本地字节完整，不升级为新浪字段承诺、SLA 或授权。页面请求不得触发新浪全市场扫描。
+
 后端使用每条行情的当日 `previous_close` 与 `last_price` 通过 Decimal 复算涨跌。精确零差额只计入 `unchanged`，不进入 12 个柱状分桶；停牌、无交易、无合法参考价和缺失行情进入 `unavailable`，不得默认为平盘。
 
 ```text

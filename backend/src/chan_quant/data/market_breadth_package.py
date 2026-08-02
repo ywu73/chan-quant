@@ -7,7 +7,7 @@ import json
 import re
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -16,6 +16,7 @@ from chan_quant.domain.market_breadth import (
     BreadthObservation,
     BreadthUniverseMember,
     MarketBreadthBuildInput,
+    MarketBreadthIssue,
     MarketBreadthSnapshot,
 )
 from chan_quant.services.market_breadth import MarketBreadthBuildError, build_market_breadth
@@ -52,10 +53,30 @@ class MarketBreadthPackageError(ValueError):
         super().__init__(f"{code}: {message}")
 
 
+class MarketBreadthEvidenceFile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1)
+    bytes: int = Field(gt=0)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def validate_path(self) -> MarketBreadthEvidenceFile:
+        candidate = PurePosixPath(self.path)
+        if candidate.is_absolute() or candidate.parts[:1] != ("evidence",):
+            raise ValueError("evidence path must be relative and start with evidence/")
+        if any(part in {"", ".", ".."} for part in candidate.parts):
+            raise ValueError("evidence path must not contain traversal segments")
+        return self
+
+
 class MarketBreadthManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["market-breadth-package-v0.1"]
+    schema_version: Literal[
+        "market-breadth-package-v0.1",
+        "market-breadth-package-v0.2",
+    ]
     market: Literal["CN_A_SH_SZ_V1"]
     mode: Literal["EOD"]
     timezone: Literal["Asia/Shanghai"]
@@ -77,6 +98,13 @@ class MarketBreadthManifest(BaseModel):
     quotes_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     quality_policy_version: Literal["market-breadth-quality-v0.1"]
     calculation_policy_version: Literal["market-breadth-calculation-v0.1"]
+    session_date_evidence: Literal["provider-row-date"] | None = None
+    snapshot_started_at: datetime | None = None
+    snapshot_completed_at: datetime | None = None
+    quote_contract: Literal["sina-hq-undocumented-observed-v0.1"] | None = None
+    request_batch_size: int | None = Field(default=None, ge=1, le=100)
+    request_count: int | None = Field(default=None, gt=0)
+    evidence_files: list[MarketBreadthEvidenceFile] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_dates(self) -> MarketBreadthManifest:
@@ -84,6 +112,44 @@ class MarketBreadthManifest(BaseModel):
             raise ValueError("universe_as_of must equal session_date")
         if self.fetched_at.tzinfo is None or self.fetched_at.utcoffset() is None:
             raise ValueError("fetched_at must include a UTC offset")
+        v2_values = (
+            self.session_date_evidence,
+            self.snapshot_started_at,
+            self.snapshot_completed_at,
+            self.quote_contract,
+            self.request_batch_size,
+            self.request_count,
+        )
+        if self.schema_version == "market-breadth-package-v0.1":
+            if any(value is not None for value in v2_values) or self.evidence_files:
+                raise ValueError("v0.1 manifest must not contain v0.2 evidence fields")
+            return self
+        if any(value is None for value in v2_values) or not self.evidence_files:
+            raise ValueError("v0.2 manifest requires capture metadata and evidence files")
+        assert self.snapshot_started_at is not None
+        assert self.snapshot_completed_at is not None
+        if (
+            self.snapshot_started_at.tzinfo is None
+            or self.snapshot_started_at.utcoffset() is None
+            or self.snapshot_completed_at.tzinfo is None
+            or self.snapshot_completed_at.utcoffset() is None
+        ):
+            raise ValueError("v0.2 snapshot timestamps must include a UTC offset")
+        if self.snapshot_completed_at < self.snapshot_started_at:
+            raise ValueError("snapshot_completed_at must not precede snapshot_started_at")
+        paths = [item.path for item in self.evidence_files]
+        if len(paths) != len(set(paths)):
+            raise ValueError("evidence paths must be unique")
+        assert self.request_count is not None
+        assert self.request_batch_size is not None
+        if len(self.evidence_files) != self.request_count:
+            raise ValueError("v0.2 requires one evidence file per successful request")
+        if not (
+            (self.request_count - 1) * self.request_batch_size
+            < self.quotes_row_count
+            <= self.request_count * self.request_batch_size
+        ):
+            raise ValueError("v0.2 request metadata does not cover all quote rows")
         return self
 
 
@@ -96,8 +162,20 @@ def _sha256_file(path: Path) -> str:
 
 
 def _dataset_id(manifest: MarketBreadthManifest) -> str:
+    payload = manifest.model_dump(mode="json")
+    if manifest.schema_version == "market-breadth-package-v0.1":
+        for field in (
+            "session_date_evidence",
+            "snapshot_started_at",
+            "snapshot_completed_at",
+            "quote_contract",
+            "request_batch_size",
+            "request_count",
+            "evidence_files",
+        ):
+            payload.pop(field, None)
     canonical = json.dumps(
-        manifest.model_dump(mode="json"),
+        payload,
         ensure_ascii=False,
         separators=(",", ":"),
         sort_keys=True,
@@ -111,7 +189,9 @@ def _load_manifest(path: Path) -> MarketBreadthManifest:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except UnicodeDecodeError as error:
-        raise MarketBreadthPackageError("MANIFEST_ENCODING", "manifest.json must be UTF-8") from error
+        raise MarketBreadthPackageError(
+            "MANIFEST_ENCODING", "manifest.json must be UTF-8"
+        ) from error
     except json.JSONDecodeError as error:
         raise MarketBreadthPackageError(
             "MANIFEST_JSON_INVALID",
@@ -286,9 +366,7 @@ def _load_quotes(path: Path, manifest: MarketBreadthManifest) -> list[BreadthObs
                         field="session_date",
                         code="QUOTES_CONTRACT_INVALID",
                     ),
-                    previous_close=_optional_decimal(
-                        row["previous_close"], field="previous_close"
-                    ),
+                    previous_close=_optional_decimal(row["previous_close"], field="previous_close"),
                     last_price=_optional_decimal(row["last_price"], field="last_price"),
                     unavailable_reason=row["unavailable_reason"].strip() or None,
                     provider_change_percent=_optional_decimal(
@@ -331,10 +409,28 @@ def load_market_breadth_package(package_path: str | Path) -> MarketBreadthSnapsh
         size_code="QUOTES_SIZE_MISMATCH",
         hash_code="QUOTES_HASH_MISMATCH",
     )
+    for evidence in manifest.evidence_files:
+        evidence_parts = PurePosixPath(evidence.path).parts
+        evidence_path = root
+        for part in evidence_parts:
+            evidence_path /= part
+            if evidence_path.is_symlink():
+                raise MarketBreadthPackageError(
+                    "EVIDENCE_PATH_INVALID",
+                    f"evidence path must not contain symbolic links: {evidence.path}",
+                )
+        _verify_file(
+            evidence_path,
+            expected_size=evidence.bytes,
+            expected_hash=evidence.sha256,
+            missing_code="EVIDENCE_MISSING",
+            size_code="EVIDENCE_SIZE_MISMATCH",
+            hash_code="EVIDENCE_HASH_MISMATCH",
+        )
     members = _load_universe(universe_path, manifest)
     observations = _load_quotes(quotes_path, manifest)
     try:
-        return build_market_breadth(
+        snapshot = build_market_breadth(
             MarketBreadthBuildInput(
                 market=manifest.market,
                 mode=manifest.mode,
@@ -351,6 +447,23 @@ def load_market_breadth_package(package_path: str | Path) -> MarketBreadthSnapsh
                 observations=observations,
             )
         )
+        if manifest.quote_contract == "sina-hq-undocumented-observed-v0.1":
+            snapshot = snapshot.model_copy(
+                update={
+                    "issues": [
+                        MarketBreadthIssue(
+                            code="SINA_UNDOCUMENTED_SOURCE",
+                            severity="WARNING",
+                            message=(
+                                "行情来自未文档化新浪网页端点；本地证据哈希不代表"
+                                "字段承诺、服务等级或使用授权。"
+                            ),
+                        ),
+                        *snapshot.issues,
+                    ]
+                }
+            )
+        return snapshot
     except (MarketBreadthBuildError, ValidationError) as error:
         if isinstance(error, MarketBreadthBuildError):
             raise MarketBreadthPackageError(error.code, error.message) from error
