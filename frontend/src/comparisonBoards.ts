@@ -11,6 +11,37 @@ export type BoardInstrument = Pick<
   "symbol" | "name" | "exchange" | "asset_type" | "price_precision"
 >;
 
+export interface SourceArtifact {
+  url: string;
+  sha256: string;
+}
+
+export interface CsiConstituentEvidence {
+  rank: number;
+  symbol: string;
+  weight_percent: number;
+  precise_weight_percent: number;
+}
+
+export type BuiltInBoardMembershipEvidence =
+  | {
+      source: "verified-identity-catalog";
+      source_as_of: string;
+      selection_rule: "FULL_VERIFIED_SET";
+    }
+  | {
+      source: "csi-official-index";
+      source_as_of: string;
+      fetched_at: string;
+      selection_rule: "TOP_8_BY_OFFICIAL_PRECISE_WEIGHT";
+      index_code: string;
+      index_name: string;
+      weight_source: SourceArtifact;
+      constituent_source: SourceArtifact;
+      factsheet_source: SourceArtifact & { as_of: string };
+      constituents: CsiConstituentEvidence[];
+    };
+
 export interface BuiltInBoard {
   id: string;
   name: string;
@@ -18,6 +49,7 @@ export interface BuiltInBoard {
   description: string;
   confirmed_at: string;
   identity_source: "sina-undocumented-suggest";
+  membership_evidence: BuiltInBoardMembershipEvidence;
   instruments: BoardInstrument[];
 }
 
@@ -112,6 +144,11 @@ export const BUILT_IN_BOARDS: BuiltInBoard[] = [
     description: "覆盖沪深主要宽基与代表性指数；成员代码和名称于 2026-08-01 通过现有证券搜索适配器逐项确认。",
     confirmed_at: "2026-08-01",
     identity_source: "sina-undocumented-suggest",
+    membership_evidence: {
+      source: "verified-identity-catalog",
+      source_as_of: "2026-08-01",
+      selection_rule: "FULL_VERIFIED_SET",
+    },
     instruments: CN_BROAD_INDEX_CATALOG.map(({
       symbol,
       name,
@@ -119,6 +156,153 @@ export const BUILT_IN_BOARDS: BuiltInBoard[] = [
       asset_type,
       price_precision,
     }) => ({ symbol, name, exchange, asset_type, price_precision })),
+  },
+  {
+    id: "csi-399997-top8",
+    name: "中证白酒前 8 权重",
+    version: "2026-07-31",
+    description: "中证白酒指数（399997）官方权重表前 8 名；不是完整指数成分，也不代表官方指数或加权组合。",
+    confirmed_at: "2026-08-02",
+    identity_source: "sina-undocumented-suggest",
+    membership_evidence: {
+      source: "csi-official-index",
+      source_as_of: "2026-07-31",
+      fetched_at: "2026-08-02",
+      selection_rule: "TOP_8_BY_OFFICIAL_PRECISE_WEIGHT",
+      index_code: "399997",
+      index_name: "中证白酒指数",
+      weight_source: {
+        url: "https://www.csindex.com.cn/csindex-home/index/weight/top10new/399997",
+        sha256: "c8d1d32d1dfef27aa40d5a0f6d897a3365eda65d0060953b8600d06600cc6eae",
+      },
+      constituent_source: {
+        url: "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/399997cons.xls",
+        sha256: "e3a0af78260d22b3c8a123a01b3b7c587fcc0843a8af69e97866a81f1d64d5e5",
+      },
+      factsheet_source: {
+        as_of: "2026-06-30",
+        url: "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/399997factsheet.pdf",
+        sha256: "84f286a91fc71d55fb591ef9e9cb666eb91217319e231184bdd50d990bc15bf1",
+      },
+      constituents: [
+        { rank: 1, symbol: "600809.SH", weight_percent: 15.43, precise_weight_percent: 15.428831090540676 },
+        { rank: 2, symbol: "000568.SZ", weight_percent: 15.38, precise_weight_percent: 15.38236913472435 },
+        { rank: 3, symbol: "600519.SH", weight_percent: 15.3, precise_weight_percent: 15.29708689472685 },
+        { rank: 4, symbol: "000858.SZ", weight_percent: 13.95, precise_weight_percent: 13.954126614443497 },
+        { rank: 5, symbol: "002304.SZ", weight_percent: 8, precise_weight_percent: 8.004741385532334 },
+        { rank: 6, symbol: "603369.SH", weight_percent: 6.65, precise_weight_percent: 6.6482397629260195 },
+        { rank: 7, symbol: "000596.SZ", weight_percent: 4.81, precise_weight_percent: 4.805405517638467 },
+        { rank: 8, symbol: "000799.SZ", weight_percent: 2.95, precise_weight_percent: 2.9475329560757344 },
+      ],
+    },
+    instruments: [
+      { symbol: "600809.SH", name: "山西汾酒", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "000568.SZ", name: "泸州老窖", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "600519.SH", name: "贵州茅台", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "000858.SZ", name: "五粮液", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "002304.SZ", name: "洋河股份", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "603369.SH", name: "今世缘", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "000596.SZ", name: "古井贡酒", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "000799.SZ", name: "酒鬼酒", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+    ],
+  },
+  {
+    id: "csi-931152-top8",
+    name: "中证创新药前 8 权重",
+    version: "2026-07-31",
+    description: "中证创新药产业指数（931152）官方权重表前 8 名；不是完整指数成分，也不代表官方指数或加权组合。",
+    confirmed_at: "2026-08-02",
+    identity_source: "sina-undocumented-suggest",
+    membership_evidence: {
+      source: "csi-official-index",
+      source_as_of: "2026-07-31",
+      fetched_at: "2026-08-02",
+      selection_rule: "TOP_8_BY_OFFICIAL_PRECISE_WEIGHT",
+      index_code: "931152",
+      index_name: "中证创新药产业指数",
+      weight_source: {
+        url: "https://www.csindex.com.cn/csindex-home/index/weight/top10new/931152",
+        sha256: "bb4a359abbb9c18a393792d854f474553aaca3a8f78afb97113f9ed72496dd61",
+      },
+      constituent_source: {
+        url: "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/931152cons.xls",
+        sha256: "8830b56ee5b1397c522b53101a5e207ace4b5e070d6a5531420d2bb043b0478f",
+      },
+      factsheet_source: {
+        as_of: "2026-06-30",
+        url: "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/931152factsheet.pdf",
+        sha256: "cd00f1b524e288ac3e74fa8eac1e81f4e639755401bc36d597ac84c42f72e5f6",
+      },
+      constituents: [
+        { rank: 1, symbol: "603259.SH", weight_percent: 11.24, precise_weight_percent: 11.241136772544513 },
+        { rank: 2, symbol: "600276.SH", weight_percent: 9.89, precise_weight_percent: 9.891465119037061 },
+        { rank: 3, symbol: "002422.SZ", weight_percent: 4.82, precise_weight_percent: 4.820611784114802 },
+        { rank: 4, symbol: "300759.SZ", weight_percent: 3.79, precise_weight_percent: 3.792452008251634 },
+        { rank: 5, symbol: "002821.SZ", weight_percent: 3.04, precise_weight_percent: 3.039827265679091 },
+        { rank: 6, symbol: "688578.SH", weight_percent: 2.99, precise_weight_percent: 2.9920744852411514 },
+        { rank: 7, symbol: "688235.SH", weight_percent: 2.95, precise_weight_percent: 2.947324374166006 },
+        { rank: 8, symbol: "600196.SH", weight_percent: 2.94, precise_weight_percent: 2.942594961143083 },
+      ],
+    },
+    instruments: [
+      { symbol: "603259.SH", name: "药明康德", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "600276.SH", name: "恒瑞医药", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "002422.SZ", name: "科伦药业", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "300759.SZ", name: "康龙化成", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "002821.SZ", name: "凯莱英", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "688578.SH", name: "艾力斯", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "688235.SH", name: "百济神州", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "600196.SH", name: "复星医药", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+    ],
+  },
+  {
+    id: "csi-931743-top8",
+    name: "半导体材料设备前 8 权重",
+    version: "2026-07-31",
+    description: "中证半导体材料设备主题指数（931743）官方权重表前 8 名；不是完整指数成分，也不代表官方指数或加权组合。",
+    confirmed_at: "2026-08-02",
+    identity_source: "sina-undocumented-suggest",
+    membership_evidence: {
+      source: "csi-official-index",
+      source_as_of: "2026-07-31",
+      fetched_at: "2026-08-02",
+      selection_rule: "TOP_8_BY_OFFICIAL_PRECISE_WEIGHT",
+      index_code: "931743",
+      index_name: "中证半导体材料设备主题指数",
+      weight_source: {
+        url: "https://www.csindex.com.cn/csindex-home/index/weight/top10new/931743",
+        sha256: "61b90eb34b4e37fa443984b928596b12fcb964a82aeccf3ccd8deeec63b37e53",
+      },
+      constituent_source: {
+        url: "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/931743cons.xls",
+        sha256: "cd68c61e0b6cba76640ae8f76d6db1dbb1005070821f54966783d899648901c2",
+      },
+      factsheet_source: {
+        as_of: "2026-06-30",
+        url: "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/931743factsheet.pdf",
+        sha256: "65e1e7929741ef82a99a7492d7c4773afeb3e16412c350d50918806625dac21a",
+      },
+      constituents: [
+        { rank: 1, symbol: "688012.SH", weight_percent: 16.28, precise_weight_percent: 16.282013156459556 },
+        { rank: 2, symbol: "002371.SZ", weight_percent: 15.27, precise_weight_percent: 15.266593013085771 },
+        { rank: 3, symbol: "688072.SH", weight_percent: 8.31, precise_weight_percent: 8.308981004312631 },
+        { rank: 4, symbol: "300604.SZ", weight_percent: 7.28, precise_weight_percent: 7.280784196392078 },
+        { rank: 5, symbol: "688120.SH", weight_percent: 6.42, precise_weight_percent: 6.422308289832428 },
+        { rank: 6, symbol: "688361.SH", weight_percent: 5.36, precise_weight_percent: 5.3645061576800135 },
+        { rank: 7, symbol: "688200.SH", weight_percent: 3.17, precise_weight_percent: 3.1709554187218467 },
+        { rank: 8, symbol: "688037.SH", weight_percent: 2.99, precise_weight_percent: 2.988252020019651 },
+      ],
+    },
+    instruments: [
+      { symbol: "688012.SH", name: "中微公司", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "002371.SZ", name: "北方华创", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "688072.SH", name: "拓荆科技", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "300604.SZ", name: "长川科技", exchange: "SZ", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "688120.SH", name: "华海清科", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "688361.SH", name: "中科飞测", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "688200.SH", name: "华峰测控", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+      { symbol: "688037.SH", name: "芯源微", exchange: "SH", asset_type: "UNKNOWN", price_precision: 2 },
+    ],
   },
 ];
 

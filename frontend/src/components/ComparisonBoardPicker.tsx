@@ -21,6 +21,24 @@ interface ComparisonBoardPickerProps {
   onClearStorage: () => void;
 }
 
+function formatBuiltInBoardProvenance(board: BuiltInBoard): string {
+  const evidence = board.membership_evidence;
+  if (evidence.source === "csi-official-index") {
+    return [
+      `版本 ${board.version}`,
+      `来源 ${evidence.index_name}（${evidence.index_code}）`,
+      `成员日期 ${evidence.source_as_of}`,
+      `身份确认 ${board.confirmed_at}`,
+    ].join(" · ");
+  }
+  return [
+    `版本 ${board.version}`,
+    `成员日期 ${evidence.source_as_of}`,
+    `身份确认 ${board.confirmed_at}`,
+    "身份来源 新浪证券搜索适配器",
+  ].join(" · ");
+}
+
 
 export function ComparisonBoardPicker({
   builtInBoards,
@@ -66,9 +84,7 @@ export function ComparisonBoardPicker({
                 <small>{board.instruments.length} 个标的</small>
               </span>
               <span>{board.description}</span>
-              <small>
-                版本 {board.version} · 确认于 {board.confirmed_at} · 来源 {board.identity_source}
-              </small>
+              <small>{formatBuiltInBoardProvenance(board)}</small>
             </button>
           </article>
         ))}

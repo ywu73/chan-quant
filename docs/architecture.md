@@ -49,7 +49,7 @@
 - `frontend/src/api`：Dashboard 与 Quote 快照获取及错误处理。
 - `frontend/src/components/InstrumentSearch.tsx`：标的输入、搜索建议和选择交互，不计算策略规则。
 - `frontend/src/marketInstruments.ts`：经过现有身份适配器现场确认的共享市场标的目录；保留提供方无法确认的 `UNKNOWN` 资产类别。
-- `frontend/src/comparisonBoards.ts`：板块身份、数量、版本化存储解析、未知版本保留和损坏数据隔离。
+- `frontend/src/comparisonBoards.ts`：内置板块成员与来源证据、板块身份、数量、版本化存储解析、未知版本保留和损坏数据隔离。
 - `frontend/src/useComparisonBoards.ts`：浏览器本地板块存储的生命周期与变更编排，展示组件不直接访问 `localStorage`。
 - `frontend/src/quotePolling.ts`：8 秒低频轮询、页面可见性暂停和生命周期清理。
 - `frontend/src/comparisonQuotePolling.ts`：多标的 Quote 并发、逐项失败、请求取消、页面可见性和晚到结果抑制的深模块；外部 interface 只有启动与停止。
@@ -64,6 +64,8 @@
 后端是策略事实的唯一所有者。前端只消费快照，不能重新计算均线、多空、共振、信号或事件成功率。
 
 多标的比较同样由后端拥有研究计算。统一日期轴是成功序列共同覆盖窗口内的交易日并集；某个标的缺少的日期返回 `null`，不以前值、零或其他标的价格填充。每条序列使用窗口内首个有效收盘价归一化，起始价、区间末收盘、上一交易日涨幅、累计收益和最大回撤均由后端给出，前端只格式化与绘图。
+
+内置板块是前端的静态选择 preset，不是新的行情或计算数据源。`comparisonBoards.ts` 以一个嵌套的成员证据 interface 隔离来源差异：宽基目录记录全量核验规则；行业/主题观察组记录中证官方指数、成员归属日、精确权重排序、官方权重响应与同日成分文件哈希。运行时只把既有规范身份装入后端比较请求，后端仍独立校验 2–8 个不同代码并拥有全部走势计算。官方权重不参与曲线计算，也不把八个标的提升为完整指数或可交易组合。
 
 可审计历史快照把数据身份与计算视图分开：`dataset_id` 由规范化 manifest 生成，`as_of` 只截断本次策略计算所见的 K 线，不改变数据集身份或完整数据范围。文件哈希、manifest 或任何一根 K 线变化都会形成不同身份或直接因哈希不匹配而失败。`provider-declared` 只记录提供方声明，不会被提升为独立复权审计结论。
 
