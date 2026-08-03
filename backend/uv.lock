@@ -71,7 +71,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "openpyxl", specifier = ">=3.1,<4" },
     { name = "pydantic", specifier = ">=2.10,<3" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.0,<1" },
 ]
 
 [package.metadata.requires-dev]
