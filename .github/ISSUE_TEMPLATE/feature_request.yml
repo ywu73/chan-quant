@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose an auditable research capability or engineering improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What research or engineering problem needs to be solved?
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria
+      description: Define observable behavior, failure behavior, and evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data source and rights
+      description: Identify sources, contracts, licenses, and whether any endpoint is undocumented.
+  - type: textarea
+    id: timing
+    attributes:
+      label: Time correctness
+      description: Explain structure_at, confirmed_at, executable_at, and prefix stability if applicable.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Product boundary
+      options:
+        - label: This does not connect a broker, place orders, publish signals, or require live credentials.
+          required: true
+        - label: This does not present mock data or backtests as live trading performance.
+          required: true

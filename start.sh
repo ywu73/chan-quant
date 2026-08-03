@@ -48,10 +48,12 @@ fi
 
 export CHAN_QUANT_DATA_SOURCE="${CHAN_QUANT_DATA_SOURCE:-sina}"
 export CHAN_QUANT_SINA_DATALEN="${CHAN_QUANT_SINA_DATALEN:-2000}"
+export CHAN_QUANT_REMOTE_NETWORK_ENABLED="${CHAN_QUANT_REMOTE_NETWORK_ENABLED:-true}"
 
 echo "Starting Chan Quant..."
 echo "Data source: $CHAN_QUANT_DATA_SOURCE"
-echo "Market breadth: remote SSE/SZSE universe + Sina quotes"
+echo "Remote market network: $CHAN_QUANT_REMOTE_NETWORK_ENABLED"
+echo "Market breadth source (when remote enabled): SSE/SZSE universe + Sina quotes"
 echo "Page: http://127.0.0.1:5173/"
 echo "Press Ctrl+C to stop both backend and frontend."
 

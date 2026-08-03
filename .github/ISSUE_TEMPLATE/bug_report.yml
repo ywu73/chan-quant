@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a reproducible Chan Quant defect without sensitive data
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, cookies, private paths, account data, or restricted market data. Security vulnerabilities belong in GitHub Private Vulnerability Reporting.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: data-mode
+    attributes:
+      label: Data mode
+      options:
+        - synthetic
+        - csv
+        - snapshot
+        - sina
+        - unknown
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: commit SHA, branch, or v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic or sanitized fixture inputs whenever possible.
+    validations:
+      required: true
+  - type: textarea
+    id: timing
+    attributes:
+      label: Time semantics
+      description: If structural events are involved, list structure_at, confirmed_at, and executable_at.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      render: shell
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed credentials, private paths, account data, and restricted market data.
+          required: true
+        - label: This report is not a request for investment advice or a trading signal.
+          required: true

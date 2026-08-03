@@ -111,6 +111,18 @@ snapshot 模式要求 `CHAN_QUANT_DATA_PACKAGE_PATH` 指向仓库外目录，且
 }
 ```
 
+## 运行时远端网络开关
+
+`CHAN_QUANT_REMOTE_NETWORK_ENABLED` 默认值为 `true`，接受 `true/false`、`1/0`、`yes/no` 或 `on/off`。它是 API 运行时的远端市场访问总开关，不改变各数据源自身的合同：
+
+- 开启时，新浪 K 线、Quote、证券建议、交易所 universe 和首页市场温度保持原有默认远端行为；
+- 关闭时，`synthetic`、本地 CSV 和本地 snapshot Dashboard 仍可计算；
+- 关闭时，搜索、远端身份、Quote、多标的新浪比较、远端市场温度和 `sina` Dashboard 返回 HTTP `503`；
+- 响应 `detail.code=REMOTE_NETWORK_DISABLED`，不得使用旧缓存、合成数据或其他远端来源回退；
+- 配置值无效时 `detail.code=REMOTE_NETWORK_CONFIGURATION_INVALID`，健康检查返回 `status=configuration_error`。
+
+该开关不把未文档化端点升级为正式 API，也不构成访问或再分发授权。显式离线导入器仍有自身的 `--acknowledge-undocumented-sina` 闸门。
+
 ## 沪深 A 股远端市场温度契约
 
 ```http

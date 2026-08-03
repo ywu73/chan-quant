@@ -1,4 +1,5 @@
 import type { QuoteSnapshot } from "../types/quote";
+import { formatApiErrorDetail } from "./errorDetail";
 
 
 export async function fetchQuote(
@@ -11,8 +12,9 @@ export async function fetchQuote(
     const payload = (await response.json().catch(() => null)) as {
       detail?: unknown;
     } | null;
-    const detail = typeof payload?.detail === "string" ? `：${payload.detail}` : "";
-    throw new Error(`实时行情不可用（HTTP ${response.status}）${detail}`);
+    const detail = formatApiErrorDetail(payload?.detail);
+    const suffix = detail ? `：${detail}` : "";
+    throw new Error(`实时行情不可用（HTTP ${response.status}）${suffix}`);
   }
   return response.json() as Promise<QuoteSnapshot>;
 }

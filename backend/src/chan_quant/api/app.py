@@ -50,6 +50,44 @@ COMPARISON_MAX_SYMBOLS = 8
 
 DataMode = Literal["synthetic", "csv", "sina", "snapshot"]
 
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+_FALSE_VALUES = {"0", "false", "no", "off"}
+
+
+def _remote_network_enabled() -> bool:
+    raw = os.getenv("CHAN_QUANT_REMOTE_NETWORK_ENABLED", "true").strip().lower()
+    if raw in _TRUE_VALUES:
+        return True
+    if raw in _FALSE_VALUES:
+        return False
+    raise ValueError(
+        "CHAN_QUANT_REMOTE_NETWORK_ENABLED must be true/false, 1/0, yes/no, or on/off"
+    )
+
+
+def _require_remote_network() -> None:
+    try:
+        enabled = _remote_network_enabled()
+    except ValueError as error:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "REMOTE_NETWORK_CONFIGURATION_INVALID",
+                "message": str(error),
+            },
+        ) from error
+    if not enabled:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "REMOTE_NETWORK_DISABLED",
+                "message": (
+                    "remote market access is disabled by "
+                    "CHAN_QUANT_REMOTE_NETWORK_ENABLED"
+                ),
+            },
+        )
+
 
 def _fallback_instrument(symbol: str, name: str) -> InstrumentIdentity:
     canonical = symbol.strip().upper()
@@ -151,15 +189,21 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    status = "ok"
     try:
         data_mode = _configured_data_mode()
-        status = "ok"
     except ValueError:
         data_mode = "invalid"
+        status = "configuration_error"
+    try:
+        remote_network = "enabled" if _remote_network_enabled() else "disabled"
+    except ValueError:
+        remote_network = "invalid"
         status = "configuration_error"
     return {
         "status": status,
         "data_mode": data_mode,
+        "remote_network": remote_network,
         "strategy": "independent-v0.1.0-draft",
     }
 
@@ -175,6 +219,7 @@ def instrument_search(
     normalized_query = q.strip()
     if not normalized_query:
         raise HTTPException(status_code=422, detail="instrument search query must not be empty")
+    _require_remote_network()
     try:
         items = search_sina_instruments(normalized_query, limit=limit)
         return InstrumentSearchResponse(
@@ -193,6 +238,7 @@ def instrument_search(
     response_model=InstrumentIdentity,
 )
 def instrument_identity(symbol: str) -> InstrumentIdentity:
+    _require_remote_network()
     try:
         return fetch_sina_instrument(symbol)
     except SinaUpstreamError as error:
@@ -215,6 +261,7 @@ def market_comparison(
         raise HTTPException(status_code=422, detail="comparison requires 2 to 8 symbols")
     if len(set(canonical_symbols)) != len(canonical_symbols):
         raise HTTPException(status_code=422, detail="comparison symbols must be distinct")
+    _require_remote_network()
     try:
         for symbol in canonical_symbols:
             to_sina_symbol(symbol)
@@ -238,6 +285,7 @@ def market_comparison(
     response_model=QuoteSnapshot,
 )
 def quote(symbol: str) -> QuoteSnapshot:
+    _require_remote_network()
     try:
         return fetch_sina_quote(symbol)
     except SinaQuoteUnavailableError as error:
@@ -262,6 +310,7 @@ def market_breadth(
             message="market must be CN_A_SH_SZ_V1",
         )
         raise HTTPException(status_code=422, detail=rejection.model_dump())
+    _require_remote_network()
     try:
         return remote_market_breadth_service.get(force_refresh=refresh)
     except RemoteMarketBreadthError as error:
@@ -313,6 +362,7 @@ def dashboard(
             name = os.getenv("CHAN_QUANT_INSTRUMENT_NAME", symbol.upper())
             instrument = _fallback_instrument(symbol, name)
         elif data_mode == "sina":
+            _require_remote_network()
             bars = fetch_sina_kline_bars(symbol, datalen=_sina_datalen())
             is_mock = False
             data_source = "sina-undocumented-kline"

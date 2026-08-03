@@ -52,4 +52,25 @@ describe("quote API client", () => {
       "实时行情不可用（HTTP 503）：Sina returned no current quote",
     );
   });
+
+  it("surfaces a structured remote-network rejection", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({
+          detail: {
+            code: "REMOTE_NETWORK_DISABLED",
+            message: "remote market access is disabled",
+          },
+        }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(fetchQuote("000001.SZ")).rejects.toThrow(
+      "实时行情不可用（HTTP 503）：remote market access is disabled [REMOTE_NETWORK_DISABLED]",
+    );
+  });
 });

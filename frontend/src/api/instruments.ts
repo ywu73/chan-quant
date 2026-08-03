@@ -1,12 +1,14 @@
 import type { InstrumentIdentity, InstrumentSearchResponse } from "../types/instrument";
+import { formatApiErrorDetail } from "./errorDetail";
 
 
 async function instrumentFailure(response: Response): Promise<Error> {
   const payload = (await response.json().catch(() => null)) as {
     detail?: unknown;
   } | null;
-  const detail = typeof payload?.detail === "string" ? `：${payload.detail}` : "";
-  return new Error(`证券搜索不可用（HTTP ${response.status}）${detail}`);
+  const detail = formatApiErrorDetail(payload?.detail);
+  const suffix = detail ? `：${detail}` : "";
+  return new Error(`证券搜索不可用（HTTP ${response.status}）${suffix}`);
 }
 
 

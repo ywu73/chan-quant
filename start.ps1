@@ -62,9 +62,14 @@ if (-not $env:CHAN_QUANT_SINA_DATALEN) {
     $env:CHAN_QUANT_SINA_DATALEN = "2000"
 }
 
+if (-not $env:CHAN_QUANT_REMOTE_NETWORK_ENABLED) {
+    $env:CHAN_QUANT_REMOTE_NETWORK_ENABLED = "true"
+}
+
 Write-Host "Starting Chan Quant..."
 Write-Host "Data source: $env:CHAN_QUANT_DATA_SOURCE"
-Write-Host "Market breadth: remote SSE/SZSE universe + Sina quotes"
+Write-Host "Remote market network: $env:CHAN_QUANT_REMOTE_NETWORK_ENABLED"
+Write-Host "Market breadth source (when remote enabled): SSE/SZSE universe + Sina quotes"
 Write-Host "Page: http://127.0.0.1:5173/"
 Write-Host "Press Ctrl+C to stop both backend and frontend."
 

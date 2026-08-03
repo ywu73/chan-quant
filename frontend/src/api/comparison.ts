@@ -1,4 +1,5 @@
 import type { MarketComparison } from "../types/comparison";
+import { formatApiErrorDetail } from "./errorDetail";
 
 
 export interface ComparisonDateRange {
@@ -22,8 +23,9 @@ export async function fetchMarketComparison(
     const payload = (await response.json().catch(() => null)) as {
       detail?: unknown;
     } | null;
-    const detail = typeof payload?.detail === "string" ? `：${payload.detail}` : "";
-    throw new Error(`读取走势对比失败（HTTP ${response.status}）${detail}`);
+    const detail = formatApiErrorDetail(payload?.detail);
+    const suffix = detail ? `：${detail}` : "";
+    throw new Error(`读取走势对比失败（HTTP ${response.status}）${suffix}`);
   }
   return response.json() as Promise<MarketComparison>;
 }

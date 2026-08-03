@@ -1,4 +1,5 @@
 import type { MarketBreadthSnapshot } from "../types/marketBreadth";
+import { formatApiErrorDetail } from "./errorDetail";
 
 
 export async function fetchMarketBreadth(
@@ -11,16 +12,8 @@ export async function fetchMarketBreadth(
     const payload = (await response.json().catch(() => null)) as {
       detail?: unknown;
     } | null;
-    const detail = payload?.detail;
-    let suffix = "";
-    if (typeof detail === "string") {
-      suffix = `：${detail}`;
-    } else if (detail && typeof detail === "object") {
-      const rejection = detail as { code?: unknown; message?: unknown };
-      const message = typeof rejection.message === "string" ? rejection.message : "";
-      const code = typeof rejection.code === "string" ? rejection.code : "";
-      suffix = message ? `：${message}${code ? ` [${code}]` : ""}` : "";
-    }
+    const detail = formatApiErrorDetail(payload?.detail);
+    const suffix = detail ? `：${detail}` : "";
     throw new Error(`市场温度不可用（HTTP ${response.status}）${suffix}`);
   }
   return response.json() as Promise<MarketBreadthSnapshot>;

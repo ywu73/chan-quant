@@ -1,4 +1,5 @@
 import type { DashboardSnapshot } from "../types/dashboard";
+import { formatApiErrorDetail } from "./errorDetail";
 
 
 interface DataQualityRejection {
@@ -30,10 +31,11 @@ export async function fetchDashboard(
     const payload = (await response.json().catch(() => null)) as {
       detail?: unknown;
     } | null;
-    const detail = typeof payload?.detail === "string"
-      ? `：${payload.detail}`
-      : isDataQualityRejection(payload?.detail)
-        ? `：数据快照已拒绝 [${payload.detail.code}] ${payload.detail.message}`
+    const formatted = formatApiErrorDetail(payload?.detail);
+    const detail = isDataQualityRejection(payload?.detail)
+      ? `：数据快照已拒绝 [${payload.detail.code}] ${payload.detail.message}`
+      : formatted
+        ? `：${formatted}`
         : "";
     throw new Error(`读取策略快照失败（HTTP ${response.status}）${detail}`);
   }

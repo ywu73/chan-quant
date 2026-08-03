@@ -1,8 +1,16 @@
 # Chan Quant
 
+> **Experimental / Research Preview** · Strategy rules: **Independent v0.1 Draft**
+
+**English summary:** Chan Quant is an auditable quantitative research workbench for market structure, trends, and time-correct strategy experiments. It is not a broker connection, trading bot, investment-advice service, or production market-data API. The default launcher accesses undocumented remote market endpoints; their contracts, availability, and usage rights are not granted by this repository's Apache-2.0 code license. Chinese documentation is normative.
+
 Chan Quant 是一个结构与趋势量化研究台。它把严格三 K 分型、简化笔、均线、Donchian 通道、多周期状态和候选信号转换为可复现、可审计且不使用未来数据的计算结果。
 
 当前策略版本为 **Independent v0.1 草案**。它是本项目独立选择的一套工程规则，不声称是“标准”或“正统”缠论。系统仍是研究与审计工具，不提供实盘交易能力。
+
+![Chan Quant Synthetic Demo](docs/assets/synthetic-demo.png)
+
+> 上图使用确定性合成数据，只展示界面与计算链路，不代表真实市场表现。
 
 ## 一键启动
 
@@ -25,6 +33,8 @@ Windows PowerShell 用户可以直接执行：
 ```text
 http://127.0.0.1:5173/
 ```
+
+> **网络访问提示：** `./start.sh` 和 `start.ps1` 默认启用远端访问。页面可能请求新浪未文档化 K 线、Quote、证券建议和批量行情端点，并读取上交所、深交所证券列表。仓库没有取得这些端点的固定字段合同、SLA、商业使用或再分发授权；使用者需要自行评估适用条款和法律边界。
 
 根地址是市场概况首页，并在全局导航中提供紧凑证券搜索。可以输入股票 `600519.SH`、ETF `513100.SH`、六位代码或名称 `纳指ETF国泰`，选择沪深股票、ETF 或指数候选后进入研究 Dashboard；完整居中搜索页保留在 `/search`，Dashboard 顶部可以继续搜索并切换标的。终端按 `Ctrl+C` 会同时关闭两个进程。
 
@@ -73,6 +83,19 @@ npm run dev -- --host 127.0.0.1
 ```
 
 打开 `http://127.0.0.1:5173/`。
+
+### 完全禁用远端市场访问
+
+默认启动行为保持远端访问开启。需要确定性离线 Dashboard、CI 或受限环境时，可以同时选择合成数据并关闭所有运行时远端市场 API：
+
+```bash
+cd backend
+CHAN_QUANT_DATA_SOURCE=synthetic \
+CHAN_QUANT_REMOTE_NETWORK_ENABLED=false \
+uv run uvicorn chan_quant.api.app:app --host 127.0.0.1 --port 8000
+```
+
+关闭后，合成 Dashboard 仍可使用；证券搜索、身份、Quote、多标的比较和市场温度等只支持远端的端点会返回带 `REMOTE_NETWORK_DISABLED` reason code 的 HTTP `503`，不会回退到旧缓存或伪造数据。支持的配置名见 [`.env.example`](.env.example)。项目不会自动读取 `.env`；示例文件只记录安全配置合同。
 
 ### 使用本地 CSV
 
@@ -207,3 +230,15 @@ npm run build
 - 匿名可访问不等于获得商业使用、再分发或稳定服务授权。
 - 当前没有交易成本、滑点、涨跌停、停牌、分红处理或组合资金曲线。
 - 行情、凭证、API Token 与本地缓存不提交到 Git。
+
+## 参与和安全
+
+- 贡献范围、验证方式和数据边界见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+- 安全漏洞请通过 GitHub Private Vulnerability Reporting 私密提交，见 [`SECURITY.md`](SECURITY.md)。
+- 项目选择性处理 Issue 和 Pull Request，不承诺响应或支持时限。
+
+## 许可证
+
+代码以 [Apache License 2.0](LICENSE) 发布，版权所有 © 2026 ywu73。
+
+该代码许可证不授予任何第三方行情、指数、交易所文件、网站内容或接口的访问、复制、商业使用和再分发权利。提供方端点能够匿名访问，不等于获得相应授权。
