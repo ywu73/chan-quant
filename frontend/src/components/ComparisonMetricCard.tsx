@@ -1,6 +1,7 @@
 import type { ComparisonQuoteState } from "../comparisonQuotePolling";
 import { formatPercent, formatPrice, formatQuoteTime, formatVolume } from "../format";
 import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
+import { getMarketTone } from "../marketTone";
 import type { ComparisonSeries } from "../types/comparison";
 
 interface ComparisonMetricCardProps {
@@ -32,11 +33,11 @@ export function ComparisonMetricCard({ series, quoteState }: ComparisonMetricCar
       <dl className="comparison-metric-card__historical-facts">
         <div><dt>起始价</dt><dd>{formatPrice(series.baseline_price, precision)}</dd></div>
         <div><dt>区间末收盘</dt><dd>{formatPrice(series.latest_close, precision)}</dd></div>
-        <div><dt>累计收益</dt><dd>{formatPercent(series.cumulative_return, 2)}</dd></div>
-        <div><dt>最大回撤</dt><dd>{formatPercent(series.max_drawdown, 2)}</dd></div>
+        <div><dt>累计收益</dt><dd className={`market-value market-value--${getMarketTone(series.cumulative_return)}`}>{formatPercent(series.cumulative_return, 2)}</dd></div>
+        <div><dt>最大回撤</dt><dd className={`market-value market-value--${getMarketTone(series.max_drawdown)}`}>{formatPercent(series.max_drawdown, 2)}</dd></div>
         <div>
           <dt>上一交易日</dt>
-          <dd>{series.previous_trading_day_return === null
+          <dd className={`market-value market-value--${getMarketTone(series.previous_trading_day_return)}`}>{series.previous_trading_day_return === null
             ? "--"
             : formatPercent(series.previous_trading_day_return, 2)}</dd>
         </div>
@@ -60,8 +61,8 @@ export function ComparisonMetricCard({ series, quoteState }: ComparisonMetricCar
           <>
             <dl className="comparison-metric-card__quote-facts">
               <div><dt>最新价</dt><dd>{formatPrice(quote.last_price, precision)}</dd></div>
-              <div><dt>涨跌额</dt><dd>{formatSignedPrice(quote.change, precision)}</dd></div>
-              <div><dt>涨跌幅</dt><dd>{formatPercent(quote.change_percent, 2)}</dd></div>
+              <div><dt>涨跌额</dt><dd className={`market-value market-value--${getMarketTone(quote.change)}`}>{formatSignedPrice(quote.change, precision)}</dd></div>
+              <div><dt>涨跌幅</dt><dd className={`market-value market-value--${getMarketTone(quote.change_percent)}`}>{formatPercent(quote.change_percent, 2)}</dd></div>
               <div><dt>昨收</dt><dd>{formatPrice(quote.previous_close, precision)}</dd></div>
               <div><dt>今开</dt><dd>{formatPrice(quote.open, precision)}</dd></div>
               <div><dt>最高</dt><dd>{formatPrice(quote.high, precision)}</dd></div>

@@ -37,7 +37,9 @@ class Instrument(InstrumentIdentity):
 
 class StatusChip(BaseModel):
     label: str
-    tone: Literal["neutral", "warning", "danger", "info", "positive"]
+    tone: Literal[
+        "neutral", "warning", "danger", "info", "positive", "bullish", "bearish"
+    ]
 
 
 class MetricCard(BaseModel):
@@ -45,7 +47,11 @@ class MetricCard(BaseModel):
     label: str
     value: str
     detail: str
-    tone: Literal["blue", "red", "orange", "purple", "green", "neutral"]
+    tone: Literal[
+        "blue", "red", "orange", "purple", "green", "neutral", "bullish", "bearish"
+    ]
+    value_direction: Literal["UP", "DOWN", "NEUTRAL"] | None = None
+    detail_direction: Literal["UP", "DOWN", "NEUTRAL"] | None = None
 
 
 class ReasonItem(BaseModel):

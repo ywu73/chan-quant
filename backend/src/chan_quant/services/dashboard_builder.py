@@ -37,6 +37,14 @@ def line_spread_pct(buy_line: float, sell_line: float) -> float:
     return buy_line / sell_line - 1
 
 
+def _market_direction(value: float) -> str:
+    if value > 0:
+        return "UP"
+    if value < 0:
+        return "DOWN"
+    return "NEUTRAL"
+
+
 def _trend_text(state: TrendState) -> str:
     return {
         TrendState.BULLISH: "多头",
@@ -47,9 +55,9 @@ def _trend_text(state: TrendState) -> str:
 
 def _trend_tone(state: TrendState) -> str:
     return (
-        "green"
+        "bullish"
         if state is TrendState.BULLISH
-        else "red"
+        else "bearish"
         if state is TrendState.BEARISH
         else "neutral"
     )
@@ -57,9 +65,9 @@ def _trend_tone(state: TrendState) -> str:
 
 def _regime(short: TrendState, long: TrendState) -> tuple[str, str]:
     if short is long is TrendState.BULLISH:
-        return "双多", "positive"
+        return "双多", "bullish"
     if short is long is TrendState.BEARISH:
-        return "双空", "danger"
+        return "双空", "bearish"
     return "通道分歧", "warning"
 
 
@@ -108,9 +116,9 @@ def build_dashboard(
     dominant_count = max(latest.bullish_resonance, latest.bearish_resonance)
     direction_label = "多头" if dominant_bullish else "空头"
     if latest.bullish_resonance >= 3:
-        zone_label, zone_tone = "强势区", "positive"
+        zone_label, zone_tone = "强势区", "bullish"
     elif latest.bearish_resonance >= 3:
-        zone_label, zone_tone = "弱势区", "danger"
+        zone_label, zone_tone = "弱势区", "bearish"
     else:
         zone_label, zone_tone = "中性区", "warning"
     regime_label, regime_tone = _regime(latest.short_channel.state, latest.long_channel.state)
@@ -125,14 +133,33 @@ def build_dashboard(
         weekly_label += " · 强势"
 
     status_chips = [
-        StatusChip(label=action_label, tone="info" if action != "WATCH" else "warning"),
+        StatusChip(
+            label=action_label,
+            tone=(
+                "bullish"
+                if action == "CANDIDATE_BUY"
+                else "bearish"
+                if action == "CANDIDATE_EXIT"
+                else "warning"
+            ),
+        ),
         StatusChip(label=zone_label, tone=zone_tone),
-        StatusChip(label=f"⚡ {direction_label}共振 {dominant_count}/4", tone="warning"),
+        StatusChip(
+            label=f"⚡ {direction_label}共振 {dominant_count}/4",
+            tone="bullish" if dominant_bullish else "bearish",
+        ),
         StatusChip(label=regime_label, tone=regime_tone),
     ]
     if result.signals:
         side_text = "候选买点" if result.signals[-1].side is SignalSide.BUY else "候选退出点"
-        status_chips.append(StatusChip(label=f"{side_text} {signal_age}天前", tone="info"))
+        status_chips.append(
+            StatusChip(
+                label=f"{side_text} {signal_age}天前",
+                tone="bullish"
+                if result.signals[-1].side is SignalSide.BUY
+                else "bearish",
+            )
+        )
 
     filters = []
     if action == "WATCH":
@@ -309,6 +336,7 @@ def build_dashboard(
                 value=price(fast),
                 detail=f"现价 {relative_to_line(current_price, fast):+.2%}",
                 tone="blue",
+                detail_direction=_market_direction(relative_to_line(current_price, fast)),
             ),
             MetricCard(
                 key="sell_line",
@@ -316,6 +344,7 @@ def build_dashboard(
                 value=price(slow),
                 detail=f"现价 {relative_to_line(current_price, slow):+.2%}",
                 tone="red",
+                detail_direction=_market_direction(relative_to_line(current_price, slow)),
             ),
             MetricCard(
                 key="spread",
@@ -323,6 +352,7 @@ def build_dashboard(
                 value=f"{spread:+.2%}",
                 detail=relation,
                 tone="orange",
+                value_direction=_market_direction(spread),
             ),
             MetricCard(
                 key="ma57",
@@ -330,6 +360,7 @@ def build_dashboard(
                 value=price(trend),
                 detail=f"现价 {relative_to_line(current_price, trend):+.2%}",
                 tone="purple",
+                detail_direction=_market_direction(relative_to_line(current_price, trend)),
             ),
             MetricCard(
                 key="short_channel",

@@ -2,6 +2,7 @@ import type { ComparisonQuoteState } from "../comparisonQuotePolling";
 import { formatPercent, formatPrice, formatQuoteTime } from "../format";
 import type { MarketInstrument } from "../homeMarket";
 import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
+import { getMarketTone } from "../marketTone";
 import type { ComparisonFailure, ComparisonSeries } from "../types/comparison";
 
 
@@ -15,12 +16,6 @@ interface IndexPerformanceCardProps {
 
 function formatSignedPercent(value: number): string {
   return `${value > 0 ? "+" : ""}${formatPercent(value, 2)}`;
-}
-
-
-function returnTone(value: number | null | undefined): string {
-  if (value === null || value === undefined || value === 0) return "neutral";
-  return value > 0 ? "up" : "down";
 }
 
 
@@ -62,13 +57,13 @@ export function IndexPerformanceCard({
         </div>
         <div>
           <dt>当日涨跌</dt>
-          <dd className={`index-performance-card__value--${returnTone(quote?.change_percent)}`}>
+          <dd className={`index-performance-card__value--${getMarketTone(quote?.change_percent)}`}>
             {quote ? formatSignedPercent(quote.change_percent) : "--"}
           </dd>
         </div>
         <div>
           <dt>上一交易日</dt>
-          <dd className={`index-performance-card__value--${returnTone(series?.previous_trading_day_return)}`}>
+          <dd className={`index-performance-card__value--${getMarketTone(series?.previous_trading_day_return)}`}>
             {series?.previous_trading_day_return === null || !series
               ? "--"
               : formatSignedPercent(series.previous_trading_day_return)}
@@ -76,13 +71,13 @@ export function IndexPerformanceCard({
         </div>
         <div>
           <dt>累计收益</dt>
-          <dd className={`index-performance-card__value--${returnTone(series?.cumulative_return)}`}>
+          <dd className={`index-performance-card__value--${getMarketTone(series?.cumulative_return)}`}>
             {series ? formatSignedPercent(series.cumulative_return) : "--"}
           </dd>
         </div>
         <div>
           <dt>最大回撤</dt>
-          <dd className={`index-performance-card__value--${returnTone(series?.max_drawdown)}`}>
+          <dd className={`index-performance-card__value--${getMarketTone(series?.max_drawdown)}`}>
             {series ? formatPercent(series.max_drawdown, 2) : "--"}
           </dd>
         </div>

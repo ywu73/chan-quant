@@ -1,4 +1,5 @@
 import { formatDate, formatPercent } from "../format";
+import { getMarketTone } from "../marketTone";
 import type { SidePerformance } from "../types/dashboard";
 
 export function PerformanceCard({ performance }: { performance: SidePerformance }) {
@@ -18,7 +19,7 @@ export function PerformanceCard({ performance }: { performance: SidePerformance 
             <span className="performance-row__count">
               {item.successes}/{item.eligible}
             </span>
-            <span className="performance-row__return">
+            <span className={`performance-row__return market-value market-value--${getMarketTone(item.mean_forward_return)}`}>
               {formatPercent(item.mean_forward_return, 2)}
             </span>
           </div>

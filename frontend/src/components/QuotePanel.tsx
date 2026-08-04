@@ -1,5 +1,6 @@
 import { formatPercent, formatPrice, formatQuoteTime, formatVolume } from "../format";
 import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
+import { getMarketTone } from "../marketTone";
 import type { QuoteSnapshot } from "../types/quote";
 
 
@@ -22,7 +23,7 @@ export function QuotePanel({
   error,
 }: QuotePanelProps) {
   const status = quote ? QUOTE_STATUS_DISPLAY[quote.status] : null;
-  const changeTone = quote && quote.change < 0 ? "negative" : "positive";
+  const changeTone = getMarketTone(quote?.change);
 
   return (
     <section className="quote-panel" aria-label="独立实时行情">

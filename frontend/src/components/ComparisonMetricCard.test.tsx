@@ -93,6 +93,11 @@ describe("ComparisonMetricCard", () => {
     expect(markup).toContain("接收时间 2026-08-01 14:35:07");
     expect(markup).toContain("sina-undocumented-quote");
     expect(markup).toContain("盘中价不参与历史比较指标计算");
+    expect(markup).toContain('class="market-value market-value--up">10.00%');
+    expect(markup).toContain('class="market-value market-value--down">-12.00%');
+    expect(markup).toContain('class="market-value market-value--down">-20.00%');
+    expect(markup).toContain('class="market-value market-value--up">+¥0.14');
+    expect(markup).toContain('class="market-value market-value--up">1.22%');
   });
 
   it("uses the instrument precision for every quote price", () => {

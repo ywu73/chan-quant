@@ -1,4 +1,4 @@
-export type Tone = "neutral" | "warning" | "danger" | "info" | "positive";
+export type Tone = "neutral" | "warning" | "danger" | "info" | "positive" | "bullish" | "bearish";
 
 export interface Instrument {
   symbol: string;
@@ -51,7 +51,9 @@ export interface MetricCardData {
   label: string;
   value: string;
   detail: string;
-  tone: "blue" | "red" | "orange" | "purple" | "green" | "neutral";
+  tone: "blue" | "red" | "orange" | "purple" | "green" | "neutral" | "bullish" | "bearish";
+  value_direction: "UP" | "DOWN" | "NEUTRAL" | null;
+  detail_direction: "UP" | "DOWN" | "NEUTRAL" | null;
 }
 
 export interface Recommendation {

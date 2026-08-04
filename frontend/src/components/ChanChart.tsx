@@ -10,7 +10,14 @@ import { init, use, type EChartsCoreOption } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useMemo, useRef } from "react";
 
-import { getVolumeBarColor } from "../chartStyle";
+import {
+  getFractalColor,
+  getSignalColor,
+  getStrokeColor,
+  getVolumeBarColor,
+  MARKET_DOWN_COLOR,
+  MARKET_UP_COLOR,
+} from "../chartStyle";
 import { formatPriceValue } from "../format";
 import type { DashboardSnapshot } from "../types/dashboard";
 
@@ -56,7 +63,7 @@ export function ChanChart({
       connectNulls: true,
       lineStyle: {
         width: 2,
-        color: stroke.direction === "UP" ? "#48b968" : "#ef665e",
+        color: getStrokeColor(stroke.direction),
         type: stroke.status === "TENTATIVE" ? "dashed" : "solid",
       },
       tooltip: { show: false },
@@ -73,7 +80,7 @@ export function ChanChart({
           signal,
         })),
       symbolSize: 38,
-      itemStyle: { color: side === "BUY" ? "#285bd4" : "#af5525" },
+      itemStyle: { color: getSignalColor(side) },
       label: {
         show: true,
         color: "#fff",
@@ -155,10 +162,10 @@ export function ChanChart({
           type: "candlestick",
           data: candles,
           itemStyle: {
-            color: "#e7554d",
-            color0: "#52bf68",
-            borderColor: "#e7554d",
-            borderColor0: "#52bf68",
+            color: MARKET_UP_COLOR,
+            color0: MARKET_DOWN_COLOR,
+            borderColor: MARKET_UP_COLOR,
+            borderColor0: MARKET_DOWN_COLOR,
           },
         },
         { name: "买线", type: "line", data: buyLine, symbol: "none", smooth: true, lineStyle: { color: "#4a79ed", width: 2 } },
@@ -170,7 +177,7 @@ export function ChanChart({
           type: "scatter",
           data: chart.fractals.filter((item) => item.kind === "BOTTOM").map((item) => [dateIndex.get(item.date), item.price]),
           symbolSize: 10,
-          itemStyle: { color: "#52bf68", borderColor: "#fff", borderWidth: 2 },
+          itemStyle: { color: getFractalColor("BOTTOM"), borderColor: "#fff", borderWidth: 2 },
           z: 8,
         },
         {
@@ -178,7 +185,7 @@ export function ChanChart({
           type: "scatter",
           data: chart.fractals.filter((item) => item.kind === "TOP").map((item) => [dateIndex.get(item.date), item.price]),
           symbolSize: 10,
-          itemStyle: { color: "#ef665e", borderColor: "#fff", borderWidth: 2 },
+          itemStyle: { color: getFractalColor("TOP"), borderColor: "#fff", borderWidth: 2 },
           z: 8,
         },
         ...signalSeries,

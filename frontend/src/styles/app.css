@@ -1,4 +1,7 @@
 :root {
+  --market-up: #d94d58;
+  --market-down: #278056;
+  --market-neutral: #7e8998;
   color: #243249;
   background: #f7f9fc;
   font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -480,7 +483,7 @@ button {
 }
 
 .home-market-card__change {
-  color: #e14650;
+  color: var(--market-up);
   font-size: 10px;
   font-weight: 700;
   text-align: right;
@@ -492,7 +495,8 @@ button {
   font-size: 12px;
 }
 
-.home-market-card__change--down { color: #2474c5; }
+.home-market-card__change--down { color: var(--market-down); }
+.home-market-card__change--neutral { color: var(--market-neutral); }
 
 .home-market-card__range {
   position: relative;
@@ -622,8 +626,8 @@ button {
   font-weight: 700;
 }
 
-.home-breadth__advance { color: #e14855; }
-.home-breadth__decline { color: #2574c8; }
+.home-breadth__advance { color: var(--market-up); }
+.home-breadth__decline { color: var(--market-down); }
 .home-breadth__unchanged { color: #8f9aaa; }
 
 .home-breadth__chart {
@@ -639,11 +643,11 @@ button {
   display: grid;
   grid-template-rows: 178px 26px;
   min-width: 54px;
-  color: #2574c8;
+  color: var(--market-down);
   text-align: center;
 }
 
-.home-breadth__bin--advance { color: #e14855; }
+.home-breadth__bin--advance { color: var(--market-up); }
 
 .home-breadth__bar-space {
   position: relative;
@@ -669,7 +673,7 @@ button {
   width: 100%;
   max-height: 150px;
   border-radius: 5px 5px 1px 1px;
-  background: linear-gradient(180deg, #2f83e6, #bcd7f8);
+  background: linear-gradient(180deg, #35a26e, #bde5cd);
 }
 
 .home-breadth__bin--advance .home-breadth__bar-space i {
@@ -1501,9 +1505,9 @@ button {
   text-align: right;
 }
 
-.index-performance-card__value--up { color: #d94d58 !important; }
-.index-performance-card__value--down { color: #278056 !important; }
-.index-performance-card__value--neutral { color: #7e8998 !important; }
+.index-performance-card__value--up { color: var(--market-up) !important; }
+.index-performance-card__value--down { color: var(--market-down) !important; }
+.index-performance-card__value--neutral { color: var(--market-neutral) !important; }
 
 .index-performance-card__error,
 .index-performance-card__warning {
@@ -1989,8 +1993,9 @@ h1 {
 }
 
 .quote-change { font-family: "SFMono-Regular", Consolas, monospace; font-size: 14px; font-weight: 800; }
-.quote-change--positive { color: #2b924b; }
-.quote-change--negative { color: #c14e45; }
+.quote-change--up { color: var(--market-up); }
+.quote-change--down { color: var(--market-down); }
+.quote-change--neutral { color: var(--market-neutral); }
 
 .quote-facts {
   display: grid;
@@ -2050,6 +2055,8 @@ h1 {
 .status-chip--danger { border-color: #f2b0a9; color: #b44f45; background: #fff7f6; }
 .status-chip--info { border-color: #a9c5fa; color: #3769c4; background: #f4f8ff; }
 .status-chip--positive { border-color: #a8ddb7; color: #2f8b4a; background: #f2fcf5; }
+.status-chip--bullish { border-color: #f0b9b5; color: #b9474f; background: #fff4f3; }
+.status-chip--bearish { border-color: #acd9bd; color: #277e54; background: #f2fbf5; }
 
 .metric-grid {
   display: grid;
@@ -2072,6 +2079,8 @@ h1 {
 .metric-card--orange { border-color: #efcf96; background: #fffaf2; }
 .metric-card--purple { border-color: #d6cdf9; background: #f8f6ff; }
 .metric-card--green { border-color: #b9e1c4; background: #f5fcf7; }
+.metric-card--bullish { border-color: #f0b9b5; background: #fff5f4; }
+.metric-card--bearish { border-color: #acd9bd; background: #f2fbf5; }
 
 .metric-card__label {
   margin: 0 0 9px;
@@ -2089,10 +2098,10 @@ h1 {
   line-height: 1.1;
 }
 
-.metric-card--red .metric-card__value,
-.metric-card--green .metric-card__value {
-  color: #3c9a51;
-}
+.metric-card--red .metric-card__value { color: var(--market-up); }
+.metric-card--green .metric-card__value { color: var(--market-down); }
+.metric-card--bullish .metric-card__value { color: var(--market-up); }
+.metric-card--bearish .metric-card__value { color: var(--market-down); }
 
 .metric-card--orange .metric-card__value { color: #36a15b; }
 
@@ -2167,8 +2176,8 @@ h2 {
   border-radius: 13px;
 }
 
-.performance-card--buy { border-color: #bfe4c9; background: #f1fbf4; }
-.performance-card--sell { border-color: #f1d3ab; background: #fff8ef; }
+.performance-card--buy { border-color: #f0b9b5; background: #fff4f3; }
+.performance-card--sell { border-color: #acd9bd; background: #f2fbf5; }
 
 .performance-card__header {
   display: flex;
@@ -2177,8 +2186,8 @@ h2 {
   margin-bottom: 12px;
 }
 
-.performance-card__header strong { color: #398b52; }
-.performance-card--sell .performance-card__header strong { color: #b56237; }
+.performance-card__header strong { color: var(--market-up); }
+.performance-card--sell .performance-card__header strong { color: var(--market-down); }
 .performance-card__header span { color: #96a2b2; font-size: 12px; }
 
 .performance-card__rows {
@@ -2193,16 +2202,19 @@ h2 {
   min-height: 32px;
   padding: 4px 10px;
   border-radius: 7px;
-  background: rgba(101, 195, 124, 0.11);
+  background: rgba(217, 77, 88, 0.08);
   color: #8a98aa;
   font-size: 12px;
 }
 
-.performance-card--sell .performance-row { background: rgba(205, 188, 104, 0.12); }
-.performance-row strong { color: #347f49; font-size: 14px; }
-.performance-card--sell .performance-row strong { color: #577a3e; }
-.performance-row__return { justify-self: end; color: #45a762; }
-.performance-card--sell .performance-row__return { color: #e25e51; }
+.performance-card--sell .performance-row { background: rgba(39, 128, 86, 0.08); }
+.performance-row strong { color: var(--market-up); font-size: 14px; }
+.performance-card--sell .performance-row strong { color: var(--market-down); }
+.performance-row__return { justify-self: end; }
+
+.market-value--up { color: var(--market-up) !important; }
+.market-value--down { color: var(--market-down) !important; }
+.market-value--neutral { color: var(--market-neutral) !important; }
 
 .performance-card__recent {
   margin: 10px 0 0;

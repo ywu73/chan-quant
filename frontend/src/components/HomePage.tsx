@@ -9,6 +9,7 @@ import {
   loadMarketQuotes,
   type MarketQuoteResult,
 } from "../homeMarket";
+import { getMarketTone } from "../marketTone";
 import { QUOTE_STATUS_DISPLAY } from "../quoteDisplay";
 import type { MarketBreadthSnapshot } from "../types/marketBreadth";
 import { MarketBreadthPanel } from "./MarketBreadthPanel";
@@ -70,7 +71,7 @@ function formatIndexValue(value: number): string {
 
 function MarketCard({ result }: { result: MarketQuoteResult }) {
   const { instrument, quote, error } = result;
-  const direction = quote && quote.change < 0 ? "down" : "up";
+  const direction = getMarketTone(quote?.change);
   const position = quote ? intradayRangePosition(quote) : 50;
 
   return (

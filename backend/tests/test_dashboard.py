@@ -9,7 +9,10 @@ from chan_quant.api.app import app
 from chan_quant.data.sina_source import SinaUpstreamError
 from chan_quant.domain.dashboard import StructuralTiming
 from chan_quant.domain.instrument import InstrumentIdentity
+from chan_quant.domain.strategy import TrendState
 from chan_quant.services.dashboard_builder import (
+    _regime,
+    _trend_tone,
     line_spread_pct,
     relative_to_line,
 )
@@ -36,6 +39,14 @@ def test_confirmed_display_formulas_match_reference_values() -> None:
     assert relative_to_line(current_price, sell_line) == pytest.approx(-0.1649, abs=0.0001)
     assert relative_to_line(current_price, ma57) == pytest.approx(-0.2532, abs=0.0001)
     assert line_spread_pct(buy_line, sell_line) == pytest.approx(-0.2085, abs=0.0001)
+
+
+def test_dashboard_exposes_semantic_market_direction_tones() -> None:
+    assert _trend_tone(TrendState.BULLISH) == "bullish"
+    assert _trend_tone(TrendState.BEARISH) == "bearish"
+    assert _trend_tone(TrendState.NEUTRAL) == "neutral"
+    assert _regime(TrendState.BULLISH, TrendState.BULLISH) == ("双多", "bullish")
+    assert _regime(TrendState.BEARISH, TrendState.BEARISH) == ("双空", "bearish")
 
 
 def test_calculated_demo_snapshot_accounting_and_signal_timing() -> None:
