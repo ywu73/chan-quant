@@ -1,7 +1,7 @@
 # Chan Quant 实现路线图与状态总账
 
 > 状态日期：2026-08-05（Asia/Shanghai）
-> 已集成基线：`main@47bbd11`
+> 已集成基线：`main@6a69a4d`
 > 产品定位：研究与审计工具，不是交易系统或生产行情服务
 
 ## 文档职责
@@ -34,8 +34,8 @@
 
 | 状态 | 数量 | 说明 |
 |---|---:|---|
-| `INTEGRATED` | 15 | 当前 `main@47bbd11` 已具备的产品与工程能力 |
-| `READY_ON_BRANCH` | 2 | 腾讯数据源治理 P0；本实现路线图 |
+| `INTEGRATED` | 16 | 当前 `main@6a69a4d` 已具备的产品与工程能力 |
+| `READY_ON_BRANCH` | 1 | 本实现路线图 |
 | `IN_PROGRESS` | 0 | 当前没有正在实施的已批准任务 |
 | `APPROVED_NOT_STARTED` | 0 | 当前没有已批准但尚未开工的任务 |
 | `PROPOSED` | 5 | 批量 Quote、跨市场、估值、基金、组合事件研究闭环 |
@@ -44,7 +44,7 @@
 
 ## 已集成目标
 
-以下项目均以 `main@47bbd11` 为集成事实基线。
+以下项目均以 `main@6a69a4d` 为集成事实基线。
 
 | ID | 目标 | 状态 | 已交付行为 | 主要证据 |
 |---|---|---|---|---|
@@ -63,12 +63,12 @@
 | `INDEX-001` | 固定宽基指数表现页 | `INTEGRATED` | 八个已核验沪深指数共享比较合同、日期快捷项、历史指标和独立 Quote | `577f15d`、`fe10bf3` |
 | `BREADTH-001` | 沪深 A 股市场温度与审计包 | `INTEGRATED` | 官方 universe、12 个非零分桶、覆盖率、不变量、质量状态和离线证据包 | `d449f51`、`6f454f9`；[`market-breadth-package.md`](market-breadth-package.md) |
 | `BREADTH-002` | 远端市场温度观测 | `INTEGRATED` | 交易所列表建立分母，新浪批量行情提供观察；300 秒缓存、强制刷新失败关闭，并显示不可审计/未文档化风险 | `6b60a93`；[`a-share-market-breadth-research.md`](a-share-market-breadth-research.md) |
+| `GOV-001` | 能力级数据源注册表与腾讯日 K/Quote 合同审计 | `INTEGRATED` | 11 条能力级来源记录、机器可读注册表及腾讯日 K/Quote NO-GO 结论已进入主分支 | `6a69a4d`；主分支 Ruff 通过、后端 133 项测试通过 |
 
 ## 已在任务分支就绪
 
 | ID | 目标 | 状态 | 分支与提交 | 进入 `INTEGRATED` 前仍需完成 |
 |---|---|---|---|---|
-| `GOV-001` | 能力级数据源注册表与腾讯日 K/Quote 合同审计 | `READY_ON_BRANCH` | `codex/tencent-data-contract-registry@6a69a4d` | 审查 11 条来源记录与腾讯 NO-GO 结论；授权后合并并在 `main` 重跑后端测试与 Ruff |
 | `GOV-002` | 单一实现路线图与状态维护规则 | `READY_ON_BRANCH` | `codex/implementation-roadmap`；证据为本文件 | 审查目标盘点与状态定义；授权后合并，随后把本行更新为 `INTEGRATED` 并记录提交 |
 
 ## 未完成目标
@@ -135,4 +135,5 @@ INTRADAY-001 / VALUATION-001 / FUND-001
 
 | 日期 | 基线 | 变更 |
 |---|---|---|
+| 2026-08-05 | `main@6a69a4d` | `GOV-001` 快进集成；主分支 Ruff 通过，后端 133 项测试通过；腾讯日 K/Quote 运行时结论仍为 NO-GO |
 | 2026-08-05 | `main@47bbd11` | 建立实现状态总账；盘点 15 项已集成目标；记录两个就绪分支目标、八项数据/行情未完成目标、一项研究提案与四项明确非目标 |
