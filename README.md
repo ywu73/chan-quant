@@ -8,6 +8,8 @@ Chan Quant 是一个结构与趋势量化研究台。它把严格三 K 分型、
 
 当前策略版本为 **Independent v0.1 草案**。它是本项目独立选择的一套工程规则，不声称是“标准”或“正统”缠论。系统仍是研究与审计工具，不提供实盘交易能力。
 
+项目目标的完成、任务分支就绪、未开始、阻塞与 NO-GO 状态统一记录在 [`docs/implementation-roadmap.md`](docs/implementation-roadmap.md)。只有已经进入 `main` 并完成主分支复验的目标才算 `INTEGRATED`。
+
 ![Chan Quant Synthetic Demo](docs/assets/synthetic-demo.png)
 
 > 上图使用确定性合成数据，只展示界面与计算链路，不代表真实市场表现。
