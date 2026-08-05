@@ -15,7 +15,11 @@ from chan_quant.data.sina_instrument_source import (
     fetch_sina_instrument,
     search_sina_instruments,
 )
-from chan_quant.data.sina_quote_source import SinaQuoteUnavailableError, fetch_sina_quote
+from chan_quant.data.sina_quote_source import (
+    SinaQuoteUnavailableError,
+    fetch_sina_quote,
+    fetch_sina_quotes,
+)
 from chan_quant.data.sina_source import (
     SinaDataError,
     SinaUpstreamError,
@@ -27,7 +31,7 @@ from chan_quant.domain.dashboard import DashboardSnapshot
 from chan_quant.domain.data_quality import DataQualityRejection, DataQualityReport
 from chan_quant.domain.instrument import InstrumentIdentity, InstrumentSearchResponse
 from chan_quant.domain.market_breadth import MarketBreadthRejection, MarketBreadthSnapshot
-from chan_quant.domain.quote import QuoteSnapshot
+from chan_quant.domain.quote import QuoteBatch, QuoteSnapshot
 from chan_quant.services.dashboard_builder import build_dashboard
 from chan_quant.services.demo_market import build_demo_bars
 from chan_quant.services.market_comparison import (
@@ -47,6 +51,8 @@ app = FastAPI(
 
 COMPARISON_MIN_SYMBOLS = 2
 COMPARISON_MAX_SYMBOLS = 8
+BATCH_QUOTE_MIN_SYMBOLS = 1
+BATCH_QUOTE_MAX_SYMBOLS = 8
 
 DataMode = Literal["synthetic", "csv", "sina", "snapshot"]
 
@@ -277,6 +283,25 @@ def market_comparison(
             end=end,
         )
     except (SinaDataError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get(
+    "/api/v1/quotes",
+    response_model=QuoteBatch,
+)
+def quote_batch(symbols: Annotated[list[str] | None, Query()] = None) -> QuoteBatch:
+    canonical_symbols = [symbol.strip().upper() for symbol in symbols or []]
+    if not BATCH_QUOTE_MIN_SYMBOLS <= len(canonical_symbols) <= BATCH_QUOTE_MAX_SYMBOLS:
+        raise HTTPException(status_code=422, detail="batch quote requires 1 to 8 symbols")
+    if len(set(canonical_symbols)) != len(canonical_symbols):
+        raise HTTPException(status_code=422, detail="batch quote symbols must be distinct")
+    _require_remote_network()
+    try:
+        return fetch_sina_quotes(canonical_symbols)
+    except SinaUpstreamError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except SinaDataError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 

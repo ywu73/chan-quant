@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchQuote } from "./quote";
+import { fetchQuote, fetchQuotes } from "./quote";
 
 
 afterEach(() => vi.unstubAllGlobals());
@@ -71,6 +71,61 @@ describe("quote API client", () => {
 
     await expect(fetchQuote("000001.SZ")).rejects.toThrow(
       "实时行情不可用（HTTP 503）：remote market access is disabled [REMOTE_NETWORK_DISABLED]",
+    );
+  });
+
+  it("loads one batch quote request with repeated canonical symbols", async () => {
+    const payload = {
+      status: "FAILED",
+      requested: ["000001.SZ", "600000.SH"],
+      succeeded: 0,
+      failed: 2,
+      quotes: [],
+      failures: [
+        {
+          symbol: "000001.SZ",
+          code: "QUOTE_UNAVAILABLE",
+          message: "测试行情不可用",
+        },
+        {
+          symbol: "600000.SH",
+          code: "QUOTE_UNAVAILABLE",
+          message: "测试行情不可用",
+        },
+      ],
+      source: "sina-undocumented-batch-quote",
+    };
+    const request = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", request);
+    const controller = new AbortController();
+
+    await expect(
+      fetchQuotes(["000001.SZ", "600000.SH"], controller.signal),
+    ).resolves.toEqual(payload);
+    expect(request).toHaveBeenCalledWith(
+      "/api/v1/quotes?symbols=000001.SZ&symbols=600000.SH",
+      { signal: controller.signal },
+    );
+  });
+
+  it("surfaces a whole-batch backend failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "Sina batch response invalid" }), {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(fetchQuotes(["000001.SZ"])).rejects.toThrow(
+      "批量实时行情不可用（HTTP 502）：Sina batch response invalid",
     );
   });
 });

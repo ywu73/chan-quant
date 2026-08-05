@@ -9,8 +9,8 @@
   -> next-open 事件研究
   -> Dashboard API ───────────────────────┐
                                           ├─> React + ECharts
-新浪未文档化实时快照 -> QuoteSnapshot     │
-  -> 独立 Quote API ──────────────────────┘
+新浪未文档化实时快照 -> QuoteSnapshot / QuoteBatch
+  -> 单标 / 1–8 标的批量 Quote API ───────┘
 
 新浪未文档化证券建议 -> InstrumentIdentity
   -> 独立 Search / Identity API -> 初始页 / Dashboard 标的切换 / 比较板块身份
@@ -18,7 +18,7 @@
 新浪未文档化 K 线端点 -> ComparisonInput[]
   -> 共同覆盖窗口与交易日并集对齐
   -> 起始价 / 区间末收盘 / 上一交易日涨幅 / 归一化收益 / 累计收益 / 最大回撤
-  -> Market Comparison API -> 多标的走势对比页 / 固定指数表现页 <- 独立多标的 Quote 轮询
+  -> Market Comparison API -> 多标的走势对比页 / 固定指数表现页 <- 单请求批量 Quote 轮询
 
 上交所 JSON + 深交所 XLSX -> 远端沪深 A 股 universe
   -> 新浪逐证券行情 / 提供方 session_date / 5 分钟进程内缓存
@@ -30,6 +30,7 @@
 
 - `backend/src/chan_quant/domain`：稳定领域数据模型与时间约束。
 - `backend/src/chan_quant/data`：CSV、新浪 K 线、实时快照与标的元数据适配、代码映射、输入和上游错误归一化。
+- `backend/src/chan_quant/data/sina_quote_source.py`：单标与 1–8 标的批量 Quote 深模块；一次请求完成字面逗号 URL、GB18030 多赋值解析、身份对应、新鲜度和逐项失败归一化，不自动回退为逐标的请求。
 - `backend/src/chan_quant/data/market_snapshot.py`：仓库外 `manifest.json + bars.csv` 的联合加载、SHA-256、标的、周期、日期范围和根数校验；失败时禁止降级。
 - `backend/src/chan_quant/data/market_breadth_package.py`：仓库外 `manifest.json + universe.csv + quotes.csv` 的联合加载、字节数、SHA-256、身份、行数和日期校验；失败时禁止降级。
 - `backend/src/chan_quant/data/exchange_universe_source.py`：上交所官方 JSON 与深交所官方 XLSX 的远端 universe adapter；统一规范证券身份、板块和上市日期，并拒绝不完整列表。
@@ -53,7 +54,7 @@
 - `frontend/src/comparisonBoards.ts`：内置板块成员与来源证据、板块身份、数量、版本化存储解析、未知版本保留和损坏数据隔离。
 - `frontend/src/useComparisonBoards.ts`：浏览器本地板块存储的生命周期与变更编排，展示组件不直接访问 `localStorage`。
 - `frontend/src/quotePolling.ts`：8 秒低频轮询、页面可见性暂停和生命周期清理。
-- `frontend/src/comparisonQuotePolling.ts`：多标的 Quote 并发、逐项失败、请求取消、页面可见性和晚到结果抑制的深模块；外部 interface 只有启动与停止。
+- `frontend/src/comparisonQuotePolling.ts`：每轮一次多标的 Quote 请求、逐项结果分发、请求取消、页面可见性和晚到结果抑制的深模块；外部 interface 只有启动与停止。
 - `frontend/src/useComparisonQuotes.ts`：把多标的 Quote 更新映射为 React 页面状态，不实现行情计算或请求编排。
 - `frontend/src/components/ComparisonMetricCard.tsx`：并列展示后端历史指标与独立 Quote 状态，不让盘中价覆盖历史结论。
 - `frontend/src/indexPerformance.ts`：只负责本地日历日期区间和快捷选项，不计算任何历史收益或回撤。
@@ -86,7 +87,7 @@ Dashboard 和 Quote 展示以 `InstrumentIdentity` 为稳定身份。Quote 响�
 
 机器可校验的 `docs/data-source-registry.json` 把每个外部或用户提供来源按具体能力登记。注册表只记录证据与 GO/NO-GO，不装配 adapter，也不改变运行时模式；远端来源仍必须由后端访问、经过总闸门并显式失败。供应商的某一能力通过研究不能外推到其其他端点，官方公开来源也不能自动推导出商业或再分发许可。
 
-实时状态也由后端给出。前端只把 `LIVE/DELAYED/CLOSED` 格式化为“实时/延迟/已收盘”，请求失败则明确显示“不可用”；失败时旧价会被清除，日线 Dashboard 和历史比较继续工作。多标的 Quote 使用一个共享轮询模块管理最多八个独立请求，页面隐藏或组合失效时中止当前周期，恢复可见后重新开始；任何晚到响应都不能写回已经停止的周期。
+实时状态也由后端给出。前端只把 `LIVE/DELAYED/CLOSED` 格式化为“实时/延迟/已收盘”，请求失败则明确显示“不可用”；失败时旧价会被清除，日线 Dashboard 和历史比较继续工作。多标的 Quote 使用一个共享轮询模块每 8 秒发送一次最多八标的批量请求，页面隐藏或组合失效时中止当前周期，恢复可见后重新开始；逐项失败只更新对应卡片，整批失败不得回退为多个单标请求，任何晚到响应都不能写回已经停止的周期。
 
 ## 时间与前缀稳定性
 

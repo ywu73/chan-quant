@@ -50,6 +50,10 @@ def test_remote_only_endpoints_fail_closed_when_network_is_disabled(monkeypatch)
         client.get("/api/v1/instruments/search", params={"q": "600519"}),
         client.get("/api/v1/instruments/600519.SH"),
         client.get("/api/v1/instruments/600519.SH/quote"),
+        client.get(
+            "/api/v1/quotes",
+            params=[("symbols", "600519.SH"), ("symbols", "000001.SZ")],
+        ),
         client.get("/api/v1/market-breadth"),
         client.get(
             "/api/v1/market-comparison",

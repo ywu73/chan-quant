@@ -18,6 +18,8 @@
 
 `GO` 只对对应字段和对应能力生效。`CONDITIONAL_GO` 表示仍有必须在使用前满足的外部条件；`PENDING` 表示研究尚未形成足够证据；`NO_GO` 表示当前不得把该能力用于相应范围。注册表结论是工程与产品闸门，不构成法律意见。
 
+`QUOTE` 与 `BATCH_QUOTE` 分别登记：单标现场行为不能自动授权批量使用。当前批量记录只允许一次 1–8 个沪深代码的本地低频研究请求，要求 URL 保留字面逗号、逐项失败且禁止回退；它不继承市场温度全市场批次的产品范围。
+
 ## 强制不变量
 
 [`chan_quant.audit.data_source_registry`](../backend/src/chan_quant/audit/data_source_registry.py) 使用 Pydantic 拒绝不完整或自相矛盾的记录：

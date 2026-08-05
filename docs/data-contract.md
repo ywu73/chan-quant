@@ -363,7 +363,49 @@ GET /api/v1/instruments/{symbol}/quote
 
 前端失败时不得无标记地延续旧价；Quote 故障不得阻断 Dashboard 或改变任何 `structure_at/confirmed_at/executable_at`。
 
-比较页只对历史比较成功的标的启动独立 Quote 轮询。每个标的的成功、失败和 stale 状态单独展示；一个 Quote 失败不得清空其他标的，也不得清空历史曲线和历史指标。切换组合、重新生成结果、页面隐藏或组件卸载时必须中止旧请求并抑制晚到响应。`last_price` 和 `change_percent` 始终标为独立行情快照，不能覆盖 `baseline_price`、`latest_close`、`previous_trading_day_return` 或其他历史比较结论。
+### 1–8 标的批量 Quote
+
+```http
+GET /api/v1/quotes?symbols=000001.SZ&symbols=600519.SH
+```
+
+请求必须包含 1–8 个互不重复的规范沪深代码。后端只发送一次新浪请求；批量协议失败时禁止自动回退为多个单标请求。成功响应固定使用 HTTP `200` 返回逐项结果：
+
+```json
+{
+  "status": "PARTIAL",
+  "requested": ["000001.SZ", "600519.SH"],
+  "succeeded": 1,
+  "failed": 1,
+  "quotes": [{
+    "symbol": "000001.SZ",
+    "name": "平安银行",
+    "last_price": 11.62,
+    "previous_close": 11.48,
+    "change": 0.14,
+    "change_percent": 0.012195,
+    "open": 11.48,
+    "high": 11.67,
+    "low": 11.42,
+    "volume": 63210000,
+    "quote_at": "2026-07-31T14:35:06+08:00",
+    "received_at": "2026-07-31T14:35:07+08:00",
+    "source": "sina-undocumented-quote",
+    "status": "LIVE",
+    "is_stale": false
+  }],
+  "failures": [{
+    "symbol": "600519.SH",
+    "code": "QUOTE_UNAVAILABLE",
+    "message": "Sina returned no current quote for 600519.SH"
+  }],
+  "source": "sina-undocumented-batch-quote"
+}
+```
+
+`COMPLETE` 表示全部成功，`PARTIAL` 表示成功和失败并存，`FAILED` 表示所有请求标的均形成逐项失败。逐项错误只允许 `QUOTE_UNAVAILABLE`、`QUOTE_INVALID` 和 `QUOTE_OMITTED`；无法归属到具体代码的畸形行、意外或重复代码、GB18030 解码失败、HTTP 错误与网络错误属于整批上游故障并返回 `502`。数量、重复或代码格式错误返回 `422`；远端总闸门关闭返回结构化 `503`。
+
+比较页只对历史比较成功的标的启动批量 Quote 轮询。每轮最多八标的且只发送一个请求，每个标的的成功、失败和 stale 状态仍单独展示；一个 Quote 失败不得清空其他标的，也不得清空历史曲线和历史指标。切换组合、重新生成结果、页面隐藏或组件卸载时必须中止旧批次并抑制晚到响应。`last_price` 和 `change_percent` 始终标为独立行情快照，不能覆盖 `baseline_price`、`latest_close`、`previous_trading_day_return` 或其他历史比较结论。
 
 ## 版本字段
 

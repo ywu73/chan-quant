@@ -5,7 +5,7 @@ import {
   type ComparisonQuoteUpdate,
 } from "./comparisonQuotePolling";
 import type { VisibilitySource } from "./quotePolling";
-import type { QuoteSnapshot } from "./types/quote";
+import type { QuoteBatch, QuoteSnapshot } from "./types/quote";
 
 
 class FakeVisibility implements VisibilitySource {
@@ -46,19 +46,40 @@ const quote = {
 } satisfies QuoteSnapshot;
 
 
+function completeBatch(): QuoteBatch {
+  return {
+    status: "COMPLETE",
+    requested: [quote.symbol],
+    succeeded: 1,
+    failed: 0,
+    quotes: [quote],
+    failures: [],
+    source: "sina-undocumented-batch-quote",
+  };
+}
+
+
 describe("comparison quote polling", () => {
   it("publishes successful and failed symbols independently", async () => {
     const visibility = new FakeVisibility();
-    const fetchQuote = vi.fn((symbol: string) => (
-      symbol === quote.symbol
-        ? Promise.resolve(quote)
-        : Promise.reject(new Error("测试行情不可用"))
-    ));
+    const fetchQuotes = vi.fn((_symbols: string[], _signal?: AbortSignal) => Promise.resolve({
+      status: "PARTIAL",
+      requested: [quote.symbol, "600000.SH"],
+      succeeded: 1,
+      failed: 1,
+      quotes: [quote],
+      failures: [{
+        symbol: "600000.SH",
+        code: "QUOTE_UNAVAILABLE",
+        message: "测试行情不可用",
+      }],
+      source: "sina-undocumented-batch-quote",
+    } satisfies QuoteBatch));
     const updates: Array<[string, ComparisonQuoteUpdate]> = [];
 
     const stop = startComparisonQuotePolling({
       symbols: [quote.symbol, "600000.SH"],
-      fetchQuote,
+      fetchQuotes,
       onUpdate: (symbol, update) => updates.push([symbol, update]),
       visibilitySource: visibility,
       intervalMs: 60_000,
@@ -67,8 +88,14 @@ describe("comparison quote polling", () => {
     await vi.waitFor(() => expect(updates).toHaveLength(2));
     expect(updates).toEqual([
       [quote.symbol, { status: "READY", quote, error: null }],
-      ["600000.SH", { status: "ERROR", quote: null, error: "测试行情不可用" }],
+      ["600000.SH", {
+        status: "ERROR",
+        quote: null,
+        error: "测试行情不可用 [QUOTE_UNAVAILABLE]",
+      }],
     ]);
+    expect(fetchQuotes).toHaveBeenCalledOnce();
+    expect(fetchQuotes.mock.calls[0][0]).toEqual([quote.symbol, "600000.SH"]);
 
     stop();
   });
@@ -76,10 +103,10 @@ describe("comparison quote polling", () => {
   it("aborts in-flight work and suppresses late updates after stop", async () => {
     const visibility = new FakeVisibility();
     let requestSignal: AbortSignal | undefined;
-    let resolveRequest: ((value: QuoteSnapshot) => void) | undefined;
-    const fetchQuote = vi.fn((_symbol: string, signal?: AbortSignal) => {
+    let resolveRequest: ((value: QuoteBatch) => void) | undefined;
+    const fetchQuotes = vi.fn((_symbols: string[], signal?: AbortSignal) => {
       requestSignal = signal;
-      return new Promise<QuoteSnapshot>((resolve) => {
+      return new Promise<QuoteBatch>((resolve) => {
         resolveRequest = resolve;
       });
     });
@@ -87,15 +114,15 @@ describe("comparison quote polling", () => {
 
     const stop = startComparisonQuotePolling({
       symbols: [quote.symbol],
-      fetchQuote,
+      fetchQuotes,
       onUpdate,
       visibilitySource: visibility,
     });
-    await vi.waitFor(() => expect(fetchQuote).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(fetchQuotes).toHaveBeenCalledOnce());
 
     stop();
     expect(requestSignal?.aborted).toBe(true);
-    resolveRequest?.(quote);
+    resolveRequest?.(completeBatch());
     await Promise.resolve();
     await Promise.resolve();
     expect(onUpdate).not.toHaveBeenCalled();
@@ -104,32 +131,60 @@ describe("comparison quote polling", () => {
   it("aborts while hidden and starts a fresh cycle when visible again", async () => {
     const visibility = new FakeVisibility();
     const signals: AbortSignal[] = [];
-    const resolvers: Array<(value: QuoteSnapshot) => void> = [];
-    const fetchQuote = vi.fn((_symbol: string, signal?: AbortSignal) => {
+    const resolvers: Array<(value: QuoteBatch) => void> = [];
+    const fetchQuotes = vi.fn((_symbols: string[], signal?: AbortSignal) => {
       if (signal) signals.push(signal);
-      return new Promise<QuoteSnapshot>((resolve) => resolvers.push(resolve));
+      return new Promise<QuoteBatch>((resolve) => resolvers.push(resolve));
     });
     const onUpdate = vi.fn();
 
     const stop = startComparisonQuotePolling({
       symbols: [quote.symbol],
-      fetchQuote,
+      fetchQuotes,
       onUpdate,
       visibilitySource: visibility,
     });
-    await vi.waitFor(() => expect(fetchQuote).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(fetchQuotes).toHaveBeenCalledTimes(1));
 
     visibility.setVisibility("hidden");
     expect(signals[0].aborted).toBe(true);
     visibility.setVisibility("visible");
-    await vi.waitFor(() => expect(fetchQuote).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(fetchQuotes).toHaveBeenCalledTimes(2));
 
-    resolvers[1](quote);
+    resolvers[1](completeBatch());
     await vi.waitFor(() => expect(onUpdate).toHaveBeenCalledOnce());
-    resolvers[0](quote);
+    resolvers[0](completeBatch());
     await Promise.resolve();
     await Promise.resolve();
     expect(onUpdate).toHaveBeenCalledOnce();
+
+    stop();
+  });
+
+  it("publishes a whole-batch failure to every requested symbol", async () => {
+    const visibility = new FakeVisibility();
+    const onUpdate = vi.fn();
+    const fetchQuotes = vi.fn().mockRejectedValue(new Error("批量协议不可用"));
+
+    const stop = startComparisonQuotePolling({
+      symbols: [quote.symbol, "600000.SH"],
+      fetchQuotes,
+      onUpdate,
+      visibilitySource: visibility,
+      intervalMs: 60_000,
+    });
+
+    await vi.waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(2));
+    expect(onUpdate).toHaveBeenNthCalledWith(1, quote.symbol, {
+      status: "ERROR",
+      quote: null,
+      error: "批量协议不可用",
+    });
+    expect(onUpdate).toHaveBeenNthCalledWith(2, "600000.SH", {
+      status: "ERROR",
+      quote: null,
+      error: "批量协议不可用",
+    });
 
     stop();
   });

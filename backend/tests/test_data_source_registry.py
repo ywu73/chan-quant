@@ -32,6 +32,7 @@ def test_registry_covers_active_market_inputs_and_tencent_candidates() -> None:
         "auditable-market-snapshot",
         "sina-undocumented-kline",
         "sina-undocumented-quote",
+        "sina-undocumented-batch-quote",
         "sina-undocumented-instrument-search",
         "sina-undocumented-market-breadth",
         "sse-official-universe",
@@ -48,6 +49,11 @@ def test_registry_covers_active_market_inputs_and_tencent_candidates() -> None:
     assert by_id["tencent-undocumented-quote-candidate"].last_verified_at is not None
     assert by_id["tencent-undocumented-kline-candidate"].decisions.automatic_fallback == "NO_GO"
     assert by_id["tencent-undocumented-quote-candidate"].decisions.automatic_fallback == "NO_GO"
+    batch_quote = by_id["sina-undocumented-batch-quote"]
+    assert batch_quote.capability == "BATCH_QUOTE"
+    assert batch_quote.decisions.local_research == "GO"
+    assert batch_quote.decisions.production_market_data == "NO_GO"
+    assert batch_quote.decisions.automatic_fallback == "NO_GO"
 
 
 def test_registry_rejects_remote_sources_that_bypass_backend_controls() -> None:

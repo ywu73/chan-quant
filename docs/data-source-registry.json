@@ -1,7 +1,7 @@
 {
   "schema_version": "data-source-registry-v0.1",
   "scope": "external-and-user-supplied-market-inputs",
-  "reviewed_at": "2026-08-05T22:09:52+08:00",
+  "reviewed_at": "2026-08-05T23:09:43+08:00",
   "sources": [
     {
       "source_id": "user-csv-daily-bars",
@@ -105,6 +105,33 @@
       "known_limitations": [
         "The endpoint has shown intermittent delays and requires provider-specific request headers.",
         "Observed quote status is not a trading-grade market-status contract."
+      ]
+    },
+    {
+      "source_id": "sina-undocumented-batch-quote",
+      "provider": "Sina Finance web endpoint",
+      "capability": "BATCH_QUOTE",
+      "status": "ACTIVE_RESEARCH",
+      "contract_status": "UNDOCUMENTED_OBSERVED",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": [],
+      "last_verified_at": "2026-08-05T23:09:43+08:00",
+      "evidence_documents": ["docs/sina-data-source.md", "docs/a-share-market-breadth-research.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "Literal commas must be preserved in the upstream URL; percent-encoded commas return one empty assignment.",
+        "The 1-8 symbol cap and eight-second polling interval are project limits, not provider rate-limit or SLA commitments.",
+        "No public field contract, commercial-use grant, or redistribution grant was found."
       ]
     },
     {

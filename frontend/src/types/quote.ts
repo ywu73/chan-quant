@@ -17,3 +17,21 @@ export interface QuoteSnapshot {
   status: QuoteStatus;
   is_stale: boolean;
 }
+
+export type QuoteFailureCode = "QUOTE_UNAVAILABLE" | "QUOTE_INVALID" | "QUOTE_OMITTED";
+
+export interface QuoteFailure {
+  symbol: string;
+  code: QuoteFailureCode;
+  message: string;
+}
+
+export interface QuoteBatch {
+  status: "COMPLETE" | "PARTIAL" | "FAILED";
+  requested: string[];
+  succeeded: number;
+  failed: number;
+  quotes: QuoteSnapshot[];
+  failures: QuoteFailure[];
+  source: "sina-undocumented-batch-quote";
+}

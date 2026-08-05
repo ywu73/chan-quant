@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { fetchQuote } from "./api/quote";
+import { fetchQuotes } from "./api/quote";
 import {
   startComparisonQuotePolling,
   type ComparisonQuoteState,
@@ -30,7 +30,7 @@ export function useComparisonQuotes(
 
     return startComparisonQuotePolling({
       symbols: currentSymbols,
-      fetchQuote,
+      fetchQuotes,
       onUpdate: (symbol, update) => {
         setStates((current) => ({ ...current, [symbol]: update }));
       },

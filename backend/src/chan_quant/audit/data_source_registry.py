@@ -12,6 +12,7 @@ SourceStatus = Literal["ACTIVE_RESEARCH", "CANDIDATE", "OFFLINE_ONLY"]
 SourceCapability = Literal[
     "DAILY_BARS",
     "QUOTE",
+    "BATCH_QUOTE",
     "INSTRUMENT_SEARCH",
     "MARKET_BREADTH_QUOTES",
     "UNIVERSE",
