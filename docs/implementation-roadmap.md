@@ -34,7 +34,7 @@
 
 | 状态 | 数量 | 说明 |
 |---|---:|---|
-| `INTEGRATED` | 17 | 当前 `main@aa9eeea` 已具备的产品与工程能力 |
+| `INTEGRATED` | 17 | 集成事实基线 `main@aa9eeea` 已具备的产品与工程能力 |
 | `READY_ON_BRANCH` | 0 | 当前没有已验证但尚未集成的任务分支 |
 | `IN_PROGRESS` | 0 | 当前没有正在实施的已批准任务 |
 | `APPROVED_NOT_STARTED` | 0 | 当前没有已批准但尚未开工的任务 |
