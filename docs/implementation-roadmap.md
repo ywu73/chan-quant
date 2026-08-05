@@ -35,8 +35,8 @@
 | 状态 | 数量 | 说明 |
 |---|---:|---|
 | `INTEGRATED` | 19 | 集成事实基线 `main@9bdd0f2` 已具备的产品与工程能力 |
-| `READY_ON_BRANCH` | 0 | 当前没有已验证但尚未集成的任务分支 |
-| `IN_PROGRESS` | 1 | `MARKET-001` 跨市场身份与比较语义正在独立任务分支实施 |
+| `READY_ON_BRANCH` | 1 | `MARKET-001` 已在独立任务分支验证，尚未集成 |
+| `IN_PROGRESS` | 0 | 当前没有正在实施的已批准任务 |
 | `APPROVED_NOT_STARTED` | 0 | 当前没有已批准但尚未开工的任务 |
 | `PROPOSED` | 2 | 估值、基金研究闭环 |
 | `BLOCKED` | 2 | 受许可历史数据；正式市场温度行情源 |
@@ -70,7 +70,9 @@
 
 ## 已在任务分支就绪
 
-当前没有已验证但尚未集成的任务分支。
+| ID | 目标 | 状态 | 分支与提交 | 分支验证与边界 |
+|---|---|---|---|---|
+| `MARKET-001` | 港股、美股与全球指数身份及比较语义 | `READY_ON_BRANCH` | `codex/cross-market-foundations@fe833d1` | Ruff、178 项后端测试、Python sdist/wheel、76 项前端测试、TypeScript/Vite 构建与 Git 空白检查通过；跨市场日 K/Quote 仍为 `BLOCKED`，未执行浏览器、真实行情、交易时段或外部授权验证 |
 
 ## 未完成目标
 
@@ -82,7 +84,6 @@
 | `DATA-007` | 腾讯日 K/Quote 运行时 Adapter | `NO_GO` | 取得适用书面许可和字段合同；解决复权长度、静默字段替换、无效代码、市场阶段与停牌语义；完成开市动态验证 | `codex/tencent-data-contract-registry@6a69a4d` 已判定日 K 与 Quote 的本地运行时均为 NO-GO |
 | `BREADTH-003` | 获授权的日终或盘中市场温度行情源 | `BLOCKED` | 取得用户明确授权和对应数据权限；同日 universe、昨收/最新价、停牌/缺行、抓取窗口、缓存与展示条款全部可验证 | 当前远端新浪链路仅是带警告的研究观察；正式候选需要 Token/权限及真实交易时段验收 |
 | `INTRADAY-001` | 有日期、时区和新鲜度合同的分钟/五分钟行情 | `NO_GO` | 响应自身提供或有正式合同证明 `session_date/timezone/freshness`；交易时段内验证增量、午休、尾盘、缺点和闭市转换；独立模型不得进入日 K 策略 | 新浪一分钟缺独立日期；五分钟未完成开市动态验证；腾讯也只有闭市后候选观察 |
-| `MARKET-001` | 港股、美股与全球指数支持 | `IN_PROGRESS` | 扩展规范身份、交易所、资产类别、ISO 币种、时区、交易日历和 provider symbol；明确跨市场共同日期与盘前盘后语义 | `codex/cross-market-foundations` 正在实现身份目录和比较语义；未获授权的跨市场日 K/Quote Adapter 必须失败关闭，禁止公共 CORS 代理和前端猜测身份 |
 | `VALUATION-001` | PE 等估值快照 | `PROPOSED` | 独立 `ValuationSnapshot`；区分 PE-TTM/静态/动态、亏损与不可用、数据时点和来源；后端拥有语义 | 腾讯/东方财富字段尚无完成的一手合同和授权审查，不得直接读取未核验位置 |
 | `FUND-001` | 基金净值与估值 | `PROPOSED` | 使用独立 `FundNavPoint/FundEstimateSnapshot`；最终净值与盘中估值分离；不伪造成 OHLC K 线 | 数据来源、更新时点、许可和产品范围均未批准 |
 
@@ -138,6 +139,7 @@ INTRADAY-001 / VALUATION-001 / FUND-001
 
 | 日期 | 基线 | 变更 |
 |---|---|---|
+| 2026-08-06 | `codex/cross-market-foundations@fe833d1` | `MARKET-001` 分支就绪；规范身份、审计目录、结构化失败关闭和跨市场本地日期/原币种比较语义完成；Ruff、178 项后端测试、Python 构建、76 项前端测试、TypeScript/Vite 构建与 Git 空白检查通过；未执行浏览器、真实跨市场行情、交易时段或外部授权验证，尚未合并或推送 |
 | 2026-08-06 | `codex/cross-market-foundations` | `MARKET-001` 获得本轮实施许可并开始独立任务分支开发；目标限定为规范身份与跨市场比较语义，未获授权的跨市场日 K/Quote 仍不得接入 |
 | 2026-08-05 | `main@124e1ac` | `RESEARCH-001` 快进集成；主分支 Ruff、157 项后端测试、Python sdist/wheel、76 项前端测试、TypeScript/Vite 构建与 Git 空白检查通过；未执行真实证券级规则、正式停牌数据或真实市场绩效验证，未推送远端 |
 | 2026-08-05 | `codex/portfolio-event-study@2d9ff6e` | `RESEARCH-001` 分支就绪；Ruff、157 项后端测试、Python 构建、76 项前端测试、TypeScript/Vite 构建、Git 空白检查和本地合成 Dashboard 浏览器验收通过；未执行真实证券规则、正式停牌数据或市场绩效验证，尚未合并或推送 |
