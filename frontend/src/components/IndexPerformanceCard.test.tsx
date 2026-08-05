@@ -5,6 +5,7 @@ import type { ComparisonQuoteState } from "../comparisonQuotePolling";
 import type { MarketInstrument } from "../homeMarket";
 import type { ComparisonSeries } from "../types/comparison";
 import type { QuoteSnapshot } from "../types/quote";
+import { cnMarketContext } from "../types/instrument";
 import { IndexPerformanceCard } from "./IndexPerformanceCard";
 
 
@@ -21,6 +22,7 @@ const series = {
     exchange: "SH",
     asset_type: "UNKNOWN",
     price_precision: 2,
+    ...cnMarketContext("SH"),
   },
   data_source: "sina-undocumented-kline",
   adjustment: "unspecified",

@@ -10,8 +10,12 @@ interface ComparisonMetricCardProps {
 }
 
 
-function formatSignedPrice(value: number, precision: number): string {
-  return `${value > 0 ? "+" : ""}${formatPrice(value, precision)}`;
+function formatSignedPrice(
+  value: number,
+  precision: number,
+  currency: ComparisonSeries["currency"],
+): string {
+  return `${value > 0 ? "+" : ""}${formatPrice(value, precision, currency)}`;
 }
 
 
@@ -31,8 +35,8 @@ export function ComparisonMetricCard({ series, quoteState }: ComparisonMetricCar
 
       <p className="comparison-metric-card__section-label">历史比较指标</p>
       <dl className="comparison-metric-card__historical-facts">
-        <div><dt>起始价</dt><dd>{formatPrice(series.baseline_price, precision)}</dd></div>
-        <div><dt>区间末收盘</dt><dd>{formatPrice(series.latest_close, precision)}</dd></div>
+        <div><dt>起始价</dt><dd>{formatPrice(series.baseline_price, precision, series.currency)}</dd></div>
+        <div><dt>区间末收盘</dt><dd>{formatPrice(series.latest_close, precision, series.currency)}</dd></div>
         <div><dt>累计收益</dt><dd className={`market-value market-value--${getMarketTone(series.cumulative_return)}`}>{formatPercent(series.cumulative_return, 2)}</dd></div>
         <div><dt>最大回撤</dt><dd className={`market-value market-value--${getMarketTone(series.max_drawdown)}`}>{formatPercent(series.max_drawdown, 2)}</dd></div>
         <div>
@@ -60,13 +64,13 @@ export function ComparisonMetricCard({ series, quoteState }: ComparisonMetricCar
         {quote && (
           <>
             <dl className="comparison-metric-card__quote-facts">
-              <div><dt>最新价</dt><dd>{formatPrice(quote.last_price, precision)}</dd></div>
-              <div><dt>涨跌额</dt><dd className={`market-value market-value--${getMarketTone(quote.change)}`}>{formatSignedPrice(quote.change, precision)}</dd></div>
+              <div><dt>最新价</dt><dd>{formatPrice(quote.last_price, precision, series.currency)}</dd></div>
+              <div><dt>涨跌额</dt><dd className={`market-value market-value--${getMarketTone(quote.change)}`}>{formatSignedPrice(quote.change, precision, series.currency)}</dd></div>
               <div><dt>涨跌幅</dt><dd className={`market-value market-value--${getMarketTone(quote.change_percent)}`}>{formatPercent(quote.change_percent, 2)}</dd></div>
-              <div><dt>昨收</dt><dd>{formatPrice(quote.previous_close, precision)}</dd></div>
-              <div><dt>今开</dt><dd>{formatPrice(quote.open, precision)}</dd></div>
-              <div><dt>最高</dt><dd>{formatPrice(quote.high, precision)}</dd></div>
-              <div><dt>最低</dt><dd>{formatPrice(quote.low, precision)}</dd></div>
+              <div><dt>昨收</dt><dd>{formatPrice(quote.previous_close, precision, series.currency)}</dd></div>
+              <div><dt>今开</dt><dd>{formatPrice(quote.open, precision, series.currency)}</dd></div>
+              <div><dt>最高</dt><dd>{formatPrice(quote.high, precision, series.currency)}</dd></div>
+              <div><dt>最低</dt><dd>{formatPrice(quote.low, precision, series.currency)}</dd></div>
               <div><dt>成交量</dt><dd>{formatVolume(quote.volume)}</dd></div>
             </dl>
             <p>行情时间 {formatQuoteTime(quote.quote_at)}</p>

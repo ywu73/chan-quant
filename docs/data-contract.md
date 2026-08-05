@@ -211,6 +211,12 @@ HTTP 非 200、连接失败、超时、编码或 JSON 畸形映射为 HTTP `502`
 - 每个信号满足 `structure_at <= confirmed_at <= executable_at`；没有下一根 K 线时 `executable_at=null`。
 - 事件收益使用确认后的下一根可用 K 线开盘价，目标索引为执行索引加 `N - 1`。
 
+## 跨市场身份合同
+
+后端 `InstrumentIdentity` 使用 provider-neutral 规范代码，并携带 `market/exchange/mic/currency/timezone/trading_calendar/provider_symbols`。沪深格式保持 `NNNNNN.SZ/SH`；跨市场格式为五位港股 `NNNNN.HK`、美股 `TICKER.US` 和全球指数 `INDEX.GI`。除沪深外，格式不能独立证明交易所或完整身份，只有 [`cross-market-identity.md`](cross-market-identity.md) 中的本地审计目录可以解析；未入目录的代码不得由前端猜测。
+
+`GET /api/v1/instruments/catalog` 可按 `market` 过滤并返回身份来源、确认日期和行情能力。当前港股、美股与全球指数目录项的日 K/Quote 都是 `BLOCKED/NO_AUTHORIZED_PROVIDER_ADAPTER`；Dashboard、Quote、批量 Quote 和远端比较请求返回结构化 HTTP `422 MARKET_DATA_ADAPTER_UNAVAILABLE`，不得回退到沪深新浪、合成数据或代理。
+
 ## 假设组合研究合同
 
 Dashboard 的 `portfolio_study` 与 `signal_performance` 并列。`signal_performance` 保留无成本的 5/10/20 日事件观察；`portfolio_study` 使用同一组后端信号，但通过 `cn-a-fixed-10pct-v1` 长仓政策维护现金、单一持仓和权益曲线。前端不得重算订单、费用、税费、滑点、权益、回撤或拒绝原因。
@@ -249,7 +255,7 @@ GET /api/v1/market-comparison?symbols=000001.SZ&symbols=600000.SH&start=2025-01-
 
 当前三个行业/主题 preset 均以 **2026-07-31** 为成员版本：中证白酒指数 `399997`、中证创新药产业指数 `931152`、中证半导体材料设备主题指数 `931743`。每组只取官方精确权重排序前 8 名，并已在 **2026-08-02** 逐项确认规范身份。它们只是快捷装载的八标的观察子集，不是完整指数成分，不计算官方指数或官方权重组合收益。来源、成员和复现细节见 `industry-board-presets-research.md`。
 
-响应以成功序列的共同覆盖窗口为范围，以该窗口内实际出现的交易日并集作为统一日期轴。每条序列的 `values` 与 `dates` 等长，值为相对该序列首个有效收盘价的十进制收益；缺失日为 `null`，不做前向填充：
+响应以成功序列的共同覆盖窗口为范围，以该窗口内实际出现的本地常规交易日并集作为统一日期轴。`alignment` 固定声明 `LOCAL_TRADING_DATE / PER_INSTRUMENT_IANA / REGULAR_SESSION_CLOSE / NATIVE_NO_FX_CONVERSION / NULL_NO_FORWARD_FILL`；同一 ISO 日期不等于同一绝对时刻，原币种收益不做外汇换算。每条序列的 `values` 与 `dates` 等长，值为相对该序列首个有效收盘价的十进制收益；缺失日为 `null`，不做前向填充：
 
 ```json
 {

@@ -18,6 +18,15 @@ describe("market comparison API client", () => {
       common_from: "2026-01-02",
       common_to: "2026-01-30",
       dates: ["2026-01-02", "2026-01-03"],
+      alignment: {
+        date_basis: "LOCAL_TRADING_DATE",
+        timezone_mode: "PER_INSTRUMENT_IANA",
+        session_scope: "REGULAR_SESSION_CLOSE",
+        currency_mode: "NATIVE_NO_FX_CONVERSION",
+        missing_date_policy: "NULL_NO_FORWARD_FILL",
+        overlap_policy: "INTERSECTION_OF_COVERAGE_WINDOWS",
+      },
+      warnings: [],
       series: [],
       failures: [],
     };

@@ -22,6 +22,8 @@ describe("display formatting", () => {
   it("formats quote facts without changing their meaning", () => {
     expect(formatPrice(11.6)).toBe("¥11.60");
     expect(formatPrice(2.112, 3)).toBe("¥2.112");
+    expect(formatPrice(200.5, 2, "USD")).toBe("US$200.50");
+    expect(formatPrice(300.5, 2, "HKD")).toBe("HK$300.50");
     expect(formatPriceValue(11.6)).toBe("11.60");
     expect(formatPriceValue("2.112", 3)).toBe("2.112");
     expect(formatPriceValue("--", 3)).toBe("--");

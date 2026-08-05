@@ -10,11 +10,15 @@ export function formatDate(value: string): string {
   return value.slice(5);
 }
 
-export function formatPrice(value: number, digits = 2): string {
+export function formatPrice(
+  value: number,
+  digits = 2,
+  currency: "CNY" | "HKD" | "USD" = "CNY",
+): string {
   return new Intl.NumberFormat("zh-CN", {
     style: "currency",
-    currency: "CNY",
-    currencyDisplay: "narrowSymbol",
+    currency,
+    currencyDisplay: "symbol",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value);

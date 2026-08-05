@@ -1100,6 +1100,12 @@ button {
   background: #fff8f7;
 }
 
+.comparison-message--warning {
+  border-color: #ecd18f;
+  color: #8d6420;
+  background: #fffaf0;
+}
+
 .comparison-summary {
   display: grid;
   grid-template-columns: 0.7fr 0.7fr 1.8fr 0.7fr;

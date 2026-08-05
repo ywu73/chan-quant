@@ -72,6 +72,7 @@ def _parse_suggestions(content: bytes, *, limit: int) -> list[InstrumentIdentity
                 exchange=exchange,
                 asset_type=asset_type,
                 price_precision=price_precision,
+                provider_symbols={"sina": provider_symbol},
             )
         )
         if len(items) >= limit:

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from chan_quant.api.app import app
 from chan_quant.data.sina_source import SinaUpstreamError
 from chan_quant.domain.instrument import InstrumentIdentity
+from chan_quant.domain.instrument_catalog import resolve_catalog_instrument
 from chan_quant.domain.market import MarketBar
 from chan_quant.services.market_comparison import (
     ComparisonInput,
@@ -92,6 +93,48 @@ def test_comparison_aligns_union_dates_without_filling_and_calculates_metrics() 
     assert second.max_drawdown_peak_at is None
     assert second.max_drawdown_trough_at is None
     assert second.coverage_ratio == pytest.approx(2 / 3)
+
+
+def test_comparison_keeps_cross_market_local_dates_and_native_currencies_explicit() -> None:
+    hk = resolve_catalog_instrument("00700.HK")
+    us = resolve_catalog_instrument("AAPL.US")
+    assert hk is not None and us is not None
+    inputs = {
+        "00700.HK": ComparisonInput(
+            instrument=hk.instrument,
+            bars=[_bar(2, 100), _bar(3, 101), _bar(4, 102)],
+            data_source="authorized-test-hk",
+            adjustment="provider-declared",
+            is_mock=False,
+            warnings=[],
+        ),
+        "AAPL.US": ComparisonInput(
+            instrument=us.instrument,
+            bars=[_bar(1, 198), _bar(3, 200), _bar(4, 202)],
+            data_source="authorized-test-us",
+            adjustment="provider-declared",
+            is_mock=False,
+            warnings=[],
+        ),
+    }
+
+    result = build_market_comparison(["00700.HK", "AAPL.US"], inputs.__getitem__)
+
+    assert [series.currency for series in result.series] == ["HKD", "USD"]
+    assert result.dates == [date(2026, 1, 2), date(2026, 1, 3), date(2026, 1, 4)]
+    assert result.series[1].values == [None, 0.0, pytest.approx(0.01)]
+    assert result.alignment.model_dump() == {
+        "date_basis": "LOCAL_TRADING_DATE",
+        "timezone_mode": "PER_INSTRUMENT_IANA",
+        "session_scope": "REGULAR_SESSION_CLOSE",
+        "currency_mode": "NATIVE_NO_FX_CONVERSION",
+        "missing_date_policy": "NULL_NO_FORWARD_FILL",
+        "overlap_policy": "INTERSECTION_OF_COVERAGE_WINDOWS",
+    }
+    assert [warning.code for warning in result.warnings] == [
+        "NATIVE_CURRENCY_NO_FX_CONVERSION",
+        "LOCAL_TRADING_DATE_ALIGNMENT",
+    ]
 
 
 def test_comparison_keeps_successful_series_when_one_symbol_fails() -> None:

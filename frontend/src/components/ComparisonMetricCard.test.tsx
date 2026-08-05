@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { ComparisonQuoteState } from "../comparisonQuotePolling";
 import type { ComparisonSeries } from "../types/comparison";
 import type { QuoteSnapshot } from "../types/quote";
+import { cnMarketContext } from "../types/instrument";
 import { ComparisonMetricCard } from "./ComparisonMetricCard";
 
 
@@ -14,6 +15,7 @@ const series = {
     exchange: "SZ",
     asset_type: "UNKNOWN",
     price_precision: 2,
+    ...cnMarketContext("SZ"),
   },
   data_source: "sina-undocumented-kline",
   adjustment: "unadjusted-observed",
@@ -109,6 +111,7 @@ describe("ComparisonMetricCard", () => {
         exchange: "SH",
         asset_type: "ETF",
         price_precision: 3,
+        ...cnMarketContext("SH"),
       },
     } satisfies ComparisonSeries;
     const etfQuote = {

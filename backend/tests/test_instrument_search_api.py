@@ -35,9 +35,15 @@ def test_instrument_search_endpoint_returns_normalized_results(monkeypatch) -> N
                 "symbol": "000001.SZ",
                 "name": "平安银行",
                 "exchange": "SZ",
-                "asset_type": "UNKNOWN",
-                "price_precision": 2,
-            }
+                    "asset_type": "UNKNOWN",
+                    "price_precision": 2,
+                    "market": "CN",
+                    "mic": "XSHE",
+                    "currency": "CNY",
+                    "timezone": "Asia/Shanghai",
+                    "trading_calendar": "XSHE",
+                    "provider_symbols": {},
+                }
         ],
         "source": "sina-undocumented-suggest",
         "limit": 5,

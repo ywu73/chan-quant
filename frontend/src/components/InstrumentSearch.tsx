@@ -13,13 +13,19 @@ interface InstrumentSearchProps {
 
 export function normalizeDirectSymbol(value: string): string | null {
   const normalized = value.trim().toUpperCase();
-  return /^\d{6}\.(SZ|SH)$/.test(normalized) ? normalized : null;
+  const supported = [
+    /^\d{6}\.(SZ|SH)$/,
+    /^\d{5}\.HK$/,
+    /^[A-Z][A-Z0-9]*(?:[.-][A-Z0-9]+)*\.US$/,
+    /^[A-Z][A-Z0-9.-]*\.GI$/,
+  ];
+  return supported.some((pattern) => pattern.test(normalized)) ? normalized : null;
 }
 
 
 interface DirectInstrumentCandidate {
   symbol: string;
-  exchange: "SZ" | "SH";
+  market: "CN" | "HK" | "US" | "GLOBAL";
 }
 
 
@@ -28,8 +34,24 @@ export function directInstrumentFromSymbol(value: string): DirectInstrumentCandi
   if (symbol === null) return null;
   return {
     symbol,
-    exchange: symbol.endsWith(".SZ") ? "SZ" : "SH",
+    market: symbol.endsWith(".HK")
+      ? "HK"
+      : symbol.endsWith(".US")
+        ? "US"
+        : symbol.endsWith(".GI")
+          ? "GLOBAL"
+          : "CN",
   };
+}
+
+
+function marketLabel(instrument: Pick<InstrumentIdentity, "market" | "exchange">): string {
+  if (instrument.exchange === "SZ") return "深市";
+  if (instrument.exchange === "SH") return "沪市";
+  if (instrument.market === "HK") return "港股";
+  if (instrument.market === "US") return "美股";
+  if (instrument.market === "GLOBAL") return "全球指数";
+  return "身份待确认";
 }
 
 
@@ -142,7 +164,7 @@ export function InstrumentSearch({
           id={inputId}
           type="search"
           value={query}
-          placeholder="搜索代码或名称，例如 600519、513100、纳指ETF"
+          placeholder="搜索名称，或输入 600519.SH、00700.HK、AAPL.US、SPX.GI"
           autoComplete="off"
           autoFocus={variant === "landing"}
           aria-controls={listId}
@@ -174,7 +196,7 @@ export function InstrumentSearch({
                 <small>规范代码 · 直接打开</small>
               </span>
               <span className="instrument-search__exchange">
-                {directInstrument.exchange === "SZ" ? "深市" : "沪市"}
+                {marketLabel({ market: directInstrument.market, exchange: null })}
               </span>
             </button>
           </div>
@@ -196,7 +218,7 @@ export function InstrumentSearch({
                   </small>
                 </span>
                 <span className="instrument-search__exchange">
-                  {item.exchange === "SZ" ? "深市" : "沪市"}
+                  {marketLabel(item)}
                 </span>
               </button>
             ))}
@@ -215,7 +237,7 @@ export function InstrumentSearch({
         {isLoading && "正在搜索…"}
         {!isLoading && error}
         {!isLoading && !error && hasSearched && items.length === 0 &&
-          "没有找到匹配的沪深股票、ETF 或指数"}
+          "没有找到匹配的沪深股票、ETF 或指数；跨市场标的需输入已审计规范代码"}
         {!isLoading && !error && !hasSearched && normalizedQuery.length === 6 && !directSymbol &&
           "六位代码可能对应不同市场，请从搜索结果中选择"}
       </p>

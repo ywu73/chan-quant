@@ -1,15 +1,12 @@
+import type { InstrumentIdentity } from "./instrument";
+
 export type Tone = "neutral" | "warning" | "danger" | "info" | "positive" | "bullish" | "bearish";
 
-export interface Instrument {
-  symbol: string;
-  name: string;
-  exchange: "SZ" | "SH" | null;
-  asset_type: "ETF" | "UNKNOWN";
-  price_precision: number;
+export interface Instrument extends InstrumentIdentity {
   timeframe: string;
   as_of: string;
   last_price: number;
-  currency: string;
+  currency: "CNY" | "HKD" | "USD";
   data_updated_at: string;
   data_source: string;
   adjustment: string;

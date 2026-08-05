@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from chan_quant.domain.comparison import (
+    ComparisonAlignment,
     ComparisonFailure,
     ComparisonSeries,
     ComparisonWarning,
@@ -161,6 +162,7 @@ def _build_series(item: _LoadedSeries, dates: list[date]) -> ComparisonSeries:
         instrument=item.source.instrument,
         data_source=item.source.data_source,
         adjustment=item.source.adjustment,
+        currency=item.source.instrument.currency,
         is_mock=item.source.is_mock,
         data_from=item.bars[0].date,
         data_to=item.bars[-1].date,
@@ -197,6 +199,30 @@ def build_market_comparison(
     dates = sorted({bar.date for item in aligned for bar in item.bars})
     series = [_build_series(item, dates) for item in aligned]
 
+    warnings: list[ComparisonWarning] = []
+    currencies = {item.instrument.currency for item in series}
+    timezones = {item.instrument.timezone for item in series}
+    if len(currencies) > 1:
+        warnings.append(
+            ComparisonWarning(
+                code="NATIVE_CURRENCY_NO_FX_CONVERSION",
+                message=(
+                    "各标的保留原始计价币种；归一化收益不进行汇率换算，"
+                    "因此不能解释为同一基准货币下的投资回报。"
+                ),
+            )
+        )
+    if len(timezones) > 1:
+        warnings.append(
+            ComparisonWarning(
+                code="LOCAL_TRADING_DATE_ALIGNMENT",
+                message=(
+                    "日期按各标的 IANA 时区下的本地常规交易时段收盘对齐；"
+                    "同一 ISO 日期不代表同一时刻，盘前盘后行情不纳入比较。"
+                ),
+            )
+        )
+
     status = "COMPLETE" if not failures else "PARTIAL" if series else "FAILED"
     return MarketComparison(
         status=status,
@@ -208,6 +234,8 @@ def build_market_comparison(
         common_from=common_from,
         common_to=common_to,
         dates=dates,
+        alignment=ComparisonAlignment(),
+        warnings=warnings,
         series=series,
         failures=failures,
     )

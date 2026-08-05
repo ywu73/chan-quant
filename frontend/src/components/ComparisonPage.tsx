@@ -273,6 +273,20 @@ export function ComparisonPage() {
             </div>
           </section>
 
+          <section className="comparison-message" aria-label="跨市场对齐口径">
+            <strong>对齐口径：</strong>
+            各标的本地交易日 · 常规时段收盘 · 原币种不换汇 · 缺失日期不填充
+          </section>
+
+          {comparison.warnings.map((warning) => (
+            <div
+              className="comparison-message comparison-message--warning"
+              key={warning.code}
+            >
+              [{warning.code}] {warning.message}
+            </div>
+          ))}
+
           {comparison.series.length > 0 && (
             <section className="comparison-chart-panel">
               <div className="comparison-section-heading">

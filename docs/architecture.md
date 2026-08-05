@@ -41,7 +41,8 @@
 - `backend/src/chan_quant/importers/sina_market_breadth.py`：把用户提供的官方同日 universe、逐批新浪响应和原始 evidence 原子转换为 v0.2 审计包；完整重读通过前不更新 `current`。
 - `backend/src/chan_quant/domain/market_breadth.py`：稳定的沪深 A 股 universe、日终或远端逐证券观察、12 个分桶、覆盖率、质量状态与拒绝合同。
 - `backend/src/chan_quant/domain/data_quality.py`：稳定的数据清单、数据集身份、完整性状态、复权依据和 reason code 合同。
-- `backend/src/chan_quant/domain/instrument.py`：稳定标的身份，包括规范代码、名称、交易所、可确认的资产类别与价格精度。
+- `backend/src/chan_quant/domain/instrument.py`：跨市场标的身份深模块；集中验证规范代码、市场、交易所、ISO 10383 MIC、资产类别、ISO 4217 币种、IANA 时区、交易日历和 provider symbol 的一致性。
+- `backend/src/chan_quant/domain/instrument_catalog.py`：经一手页面核对的本地身份目录及独立行情能力状态；身份可解析不等于日 K/Quote 已获准，当前跨市场行情均失败关闭。详细合同见 [`cross-market-identity.md`](cross-market-identity.md)。
 - `backend/src/chan_quant/audit`：候选行情与参考日线、交易日历及历史快照的可复现质量审计。
 - `backend/src/chan_quant/audit/data_source_registry.py`：校验能力级数据源台账的合同、许可状态、运行范围与禁止自动降级等政策不变量；不负责运行时选源。
 - `backend/src/chan_quant/strategy`：指标、结构和 Independent v0.1 信号引擎。
@@ -76,7 +77,7 @@
 
 API 适配层同时拥有运行时远端网络总闸门。`CHAN_QUANT_REMOTE_NETWORK_ENABLED` 默认开启；关闭时，远端专属端点以结构化 HTTP `503` 失败，本地 synthetic、CSV 和 snapshot 研究链路继续可用。总闸门只控制运行时网络副作用，不改变数据模式、不生成替代数据，也不绕过离线导入器自身的明确确认参数。
 
-多标的比较同样由后端拥有研究计算。统一日期轴是成功序列共同覆盖窗口内的交易日并集；某个标的缺少的日期返回 `null`，不以前值、零或其他标的价格填充。每条序列使用窗口内首个有效收盘价归一化，起始价、区间末收盘、上一交易日涨幅、累计收益和最大回撤均由后端给出，前端只格式化与绘图。
+多标的比较同样由后端拥有研究计算。统一日期轴是成功序列共同覆盖窗口内、按各标的 IANA 时区解释的本地常规交易日并集；同一 ISO 日期不宣称是同一绝对时刻，盘前盘后不纳入。某个标的缺少的日期返回 `null`，不以前值、零或其他标的价格填充。每条序列使用窗口内首个有效收盘价在原币种中归一化，不做外汇换算；起始价、区间末收盘、上一交易日涨幅、累计收益和最大回撤均由后端给出，前端只格式化、绘图并展示跨币种/跨时区警告。
 
 内置板块是前端的静态选择 preset，不是新的行情或计算数据源。`comparisonBoards.ts` 以一个嵌套的成员证据 interface 隔离来源差异：宽基目录记录全量核验规则；行业/主题观察组记录中证官方指数、成员归属日、精确权重排序、官方权重响应与同日成分文件哈希。运行时只把既有规范身份装入后端比较请求，后端仍独立校验 2–8 个不同代码并拥有全部走势计算。官方权重不参与曲线计算，也不把八个标的提升为完整指数或可交易组合。
 

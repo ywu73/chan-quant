@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from chan_quant.domain.instrument import InstrumentIdentity
+from chan_quant.domain.instrument import CurrencyCode, InstrumentIdentity
 
 
 class ComparisonWarning(BaseModel):
@@ -27,7 +27,7 @@ class ComparisonSeries(BaseModel):
     instrument: InstrumentIdentity
     data_source: str
     adjustment: str
-    currency: Literal["CNY"] = "CNY"
+    currency: CurrencyCode
     is_mock: bool
     data_from: date
     data_to: date
@@ -44,6 +44,19 @@ class ComparisonSeries(BaseModel):
     warnings: list[ComparisonWarning]
 
 
+class ComparisonAlignment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    date_basis: Literal["LOCAL_TRADING_DATE"] = "LOCAL_TRADING_DATE"
+    timezone_mode: Literal["PER_INSTRUMENT_IANA"] = "PER_INSTRUMENT_IANA"
+    session_scope: Literal["REGULAR_SESSION_CLOSE"] = "REGULAR_SESSION_CLOSE"
+    currency_mode: Literal["NATIVE_NO_FX_CONVERSION"] = "NATIVE_NO_FX_CONVERSION"
+    missing_date_policy: Literal["NULL_NO_FORWARD_FILL"] = "NULL_NO_FORWARD_FILL"
+    overlap_policy: Literal["INTERSECTION_OF_COVERAGE_WINDOWS"] = (
+        "INTERSECTION_OF_COVERAGE_WINDOWS"
+    )
+
+
 class MarketComparison(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -56,5 +69,7 @@ class MarketComparison(BaseModel):
     common_from: date | None
     common_to: date | None
     dates: list[date]
+    alignment: ComparisonAlignment = Field(default_factory=ComparisonAlignment)
+    warnings: list[ComparisonWarning] = Field(default_factory=list)
     series: list[ComparisonSeries]
     failures: list[ComparisonFailure]

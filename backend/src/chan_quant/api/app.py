@@ -29,7 +29,17 @@ from chan_quant.data.sina_source import (
 from chan_quant.domain.comparison import ComparisonWarning, MarketComparison
 from chan_quant.domain.dashboard import DashboardSnapshot
 from chan_quant.domain.data_quality import DataQualityRejection, DataQualityReport
-from chan_quant.domain.instrument import InstrumentIdentity, InstrumentSearchResponse
+from chan_quant.domain.instrument import (
+    InstrumentIdentity,
+    InstrumentSearchResponse,
+    MarketCode,
+    normalize_canonical_symbol,
+)
+from chan_quant.domain.instrument_catalog import (
+    InstrumentCatalogResponse,
+    list_catalog_instruments,
+    resolve_catalog_instrument,
+)
 from chan_quant.domain.market_breadth import MarketBreadthRejection, MarketBreadthSnapshot
 from chan_quant.domain.quote import QuoteBatch, QuoteSnapshot
 from chan_quant.services.dashboard_builder import build_dashboard
@@ -108,6 +118,29 @@ def _fallback_instrument(symbol: str, name: str) -> InstrumentIdentity:
         asset_type="UNKNOWN",
         price_precision=2,
     )
+
+
+def _reject_unsupported_market_data(symbols: list[str], capability: str) -> None:
+    unsupported: list[str] = []
+    for symbol in symbols:
+        try:
+            _, market = normalize_canonical_symbol(symbol)
+        except ValueError:
+            continue
+        if market not in {"CN", "SYNTHETIC"}:
+            unsupported.append(symbol.strip().upper())
+    if unsupported:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "status": "REJECTED",
+                "code": "MARKET_DATA_ADAPTER_UNAVAILABLE",
+                "message": (
+                    f"{capability} has no authorized provider adapter for "
+                    f"{', '.join(unsupported)}"
+                ),
+            },
+        )
 
 
 def _configured_data_mode() -> DataMode:
@@ -241,10 +274,34 @@ def instrument_search(
 
 
 @app.get(
+    "/api/v1/instruments/catalog",
+    response_model=InstrumentCatalogResponse,
+)
+def instrument_catalog(market: MarketCode | None = None) -> InstrumentCatalogResponse:
+    return InstrumentCatalogResponse(items=list_catalog_instruments(market))
+
+
+@app.get(
     "/api/v1/instruments/{symbol}",
     response_model=InstrumentIdentity,
 )
 def instrument_identity(symbol: str) -> InstrumentIdentity:
+    catalog_entry = resolve_catalog_instrument(symbol)
+    if catalog_entry is not None:
+        return catalog_entry.instrument
+    try:
+        _, market = normalize_canonical_symbol(symbol)
+    except ValueError:
+        market = None
+    if market in {"HK", "US", "GLOBAL"}:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "status": "REJECTED",
+                "code": "IDENTITY_NOT_IN_AUDITED_CATALOG",
+                "message": f"no audited instrument identity is available for {symbol.upper()}",
+            },
+        )
     _require_remote_network()
     try:
         return fetch_sina_instrument(symbol)
@@ -268,6 +325,7 @@ def market_comparison(
         raise HTTPException(status_code=422, detail="comparison requires 2 to 8 symbols")
     if len(set(canonical_symbols)) != len(canonical_symbols):
         raise HTTPException(status_code=422, detail="comparison symbols must be distinct")
+    _reject_unsupported_market_data(canonical_symbols, "daily comparison")
     _require_remote_network()
     try:
         for symbol in canonical_symbols:
@@ -298,6 +356,7 @@ def quote_batch(symbols: Annotated[list[str] | None, Query()] = None) -> QuoteBa
         raise HTTPException(status_code=422, detail="batch quote requires 1 to 8 symbols")
     if len(set(canonical_symbols)) != len(canonical_symbols):
         raise HTTPException(status_code=422, detail="batch quote symbols must be distinct")
+    _reject_unsupported_market_data(canonical_symbols, "quote")
     _require_remote_network()
     try:
         return fetch_sina_quotes(canonical_symbols)
@@ -312,6 +371,7 @@ def quote_batch(symbols: Annotated[list[str] | None, Query()] = None) -> QuoteBa
     response_model=QuoteSnapshot,
 )
 def quote(symbol: str) -> QuoteSnapshot:
+    _reject_unsupported_market_data([symbol], "quote")
     _require_remote_network()
     try:
         return fetch_sina_quote(symbol)
@@ -356,6 +416,7 @@ def dashboard(
     lookback: str = Query(default="2y", pattern="^(2y)$"),
 ) -> DashboardSnapshot:
     del timeframe, lookback
+    _reject_unsupported_market_data([symbol], "dashboard daily bars")
     try:
         data_mode = _configured_data_mode()
         data_quality: DataQualityReport | None = None

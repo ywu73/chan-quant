@@ -18,7 +18,7 @@ export interface ComparisonSeries {
   instrument: InstrumentIdentity;
   data_source: string;
   adjustment: string;
-  currency: "CNY";
+  currency: "CNY" | "HKD" | "USD";
   is_mock: boolean;
   data_from: string;
   data_to: string;
@@ -36,6 +36,16 @@ export interface ComparisonSeries {
 }
 
 
+export interface ComparisonAlignment {
+  date_basis: "LOCAL_TRADING_DATE";
+  timezone_mode: "PER_INSTRUMENT_IANA";
+  session_scope: "REGULAR_SESSION_CLOSE";
+  currency_mode: "NATIVE_NO_FX_CONVERSION";
+  missing_date_policy: "NULL_NO_FORWARD_FILL";
+  overlap_policy: "INTERSECTION_OF_COVERAGE_WINDOWS";
+}
+
+
 export interface MarketComparison {
   status: "COMPLETE" | "PARTIAL" | "FAILED";
   requested: string[];
@@ -46,6 +56,8 @@ export interface MarketComparison {
   common_from: string | null;
   common_to: string | null;
   dates: string[];
+  alignment: ComparisonAlignment;
+  warnings: ComparisonWarning[];
   series: ComparisonSeries[];
   failures: ComparisonFailure[];
 }
