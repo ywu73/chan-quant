@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, time, timedelta, timezone
 
 from chan_quant.backtest.event_study import build_signal_performance
+from chan_quant.backtest.portfolio_study import build_portfolio_study
 from chan_quant.domain.dashboard import (
     ChartBar,
     ChartSnapshot,
@@ -393,6 +394,7 @@ def build_dashboard(
         ],
         recommendation=recommendation,
         signal_performance=build_signal_performance(bars, result),
+        portfolio_study=build_portfolio_study(bars, result),
         chart=ChartSnapshot(
             bars=chart_bars,
             fractals=fractals,

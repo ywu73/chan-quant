@@ -89,6 +89,85 @@ export interface SignalPerformance {
   sell: SidePerformance;
 }
 
+export interface PortfolioPolicy {
+  version: string;
+  initial_cash: number;
+  commission_bps: number;
+  minimum_commission: number;
+  sell_tax_bps: number;
+  slippage_bps: number;
+  lot_size: number;
+  max_position_fraction: number;
+  price_limit_ratio: number;
+  price_limit_decimals: number;
+}
+
+export interface PortfolioDecision {
+  signal_id: string;
+  side: "BUY" | "SELL";
+  status: "FILLED" | "REJECTED" | "NOT_EXECUTABLE";
+  reason_code: string;
+  timing: {
+    structure_at: string;
+    confirmed_at: string;
+    executable_at: string | null;
+  };
+  execution_price: number | null;
+  quantity: number;
+  notional: number;
+  commission: number;
+  transaction_tax: number;
+  slippage_cost: number;
+  cash_after: number;
+  position_after: number;
+}
+
+export interface PortfolioMarketConstraint {
+  date: string;
+  trading_status: "OPEN" | "SUSPENDED";
+  source: string;
+  upper_limit: number | null;
+  lower_limit: number | null;
+}
+
+export interface PortfolioEquityPoint {
+  date: string;
+  cash: number;
+  position_quantity: number;
+  close: number;
+  equity: number;
+}
+
+export interface PortfolioStatistics {
+  starting_cash: number;
+  ending_equity: number;
+  total_return: number;
+  max_drawdown: number;
+  filled_orders: number;
+  rejected_orders: number;
+  rejected_reasons: Record<string, number>;
+  closed_positions: number;
+  winning_positions: number;
+  win_rate: number;
+  total_costs: number;
+  slippage_cost: number;
+  turnover: number;
+  exposure_ratio: number;
+  open_position_quantity: number;
+  realized_pnl: number;
+  unrealized_pnl: number;
+}
+
+export interface PortfolioStudy {
+  methodology_status: "HYPOTHETICAL_RESEARCH_ASSUMPTIONS";
+  policy: PortfolioPolicy;
+  market_constraints: PortfolioMarketConstraint[];
+  statistics: PortfolioStatistics;
+  decisions: PortfolioDecision[];
+  equity_curve: PortfolioEquityPoint[];
+  warnings: Array<{ code: string; message: string }>;
+}
+
 export interface ChartBar {
   date: string;
   open: number;
@@ -136,6 +215,7 @@ export interface DashboardSnapshot {
   metrics: MetricCardData[];
   recommendation: Recommendation;
   signal_performance: SignalPerformance;
+  portfolio_study: PortfolioStudy;
   chart: {
     bars: ChartBar[];
     fractals: FractalMarker[];

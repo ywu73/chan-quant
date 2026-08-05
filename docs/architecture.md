@@ -6,7 +6,9 @@
   -> EMA/SMA/Donchian/日周趋势
   -> 严格三 K 分型与简化笔
   -> setup 生命周期与候选信号
-  -> next-open 事件研究
+  -> next-open 无成本事件研究
+  -> 假设执行政策 / 持仓与资金状态 / 权益曲线
+  -> 单标的长仓组合研究
   -> Dashboard API ───────────────────────┐
                                           ├─> React + ECharts
 新浪未文档化实时快照 -> QuoteSnapshot / QuoteBatch
@@ -43,7 +45,9 @@
 - `backend/src/chan_quant/audit`：候选行情与参考日线、交易日历及历史快照的可复现质量审计。
 - `backend/src/chan_quant/audit/data_source_registry.py`：校验能力级数据源台账的合同、许可状态、运行范围与禁止自动降级等政策不变量；不负责运行时选源。
 - `backend/src/chan_quant/strategy`：指标、结构和 Independent v0.1 信号引擎。
-- `backend/src/chan_quant/backtest`：无成本的信号事件研究，不是组合回测。
+- `backend/src/chan_quant/backtest/event_study.py`：无成本的 5/10/20 日信号事件研究。
+- `backend/src/chan_quant/backtest/portfolio_study.py`：通过单一 `build_portfolio_study(...)` interface 隐藏假设成交、资金分配、整手、费用、滑点、固定涨跌停、零成交、持仓状态、权益曲线和组合统计；它是单标的长仓研究，不是交易所级回放或多标的组合引擎。
+- `backend/src/chan_quant/domain/portfolio.py`：执行政策、逐信号决策、三段时间、权益点、统计与风险提示的稳定领域合同。
 - `backend/src/chan_quant/services`：合成行情生成与 Dashboard 快照组装。
 - `backend/src/chan_quant/services/market_comparison.py`：多标的取数 seam 后的日期过滤、共同窗口、缺失日对齐、历史价格、上一交易日涨幅、归一化收益、累计收益、最大回撤与逐项失败隔离。
 - `backend/src/chan_quant/services/market_breadth.py`：后端唯一的涨跌分类、非零分桶、不变量、覆盖率、可解释比例和质量状态所有者。
@@ -61,9 +65,14 @@
 - `frontend/src/components/IndexPerformancePage.tsx`：编排 8 个共享沪深宽基身份的比较请求与独立 Quote 状态；固定卡片顺序，逐项失败隔离。
 - `frontend/src/components/IndexPerformanceCard.tsx`：并列格式化后端历史指标与当前行情，明确区分区间末收盘和独立 Quote。
 - `frontend/src/components/MarketBreadthPanel.tsx`：只渲染后端聚合结果、审计身份和失败状态；覆盖不足时隐藏分布，不从行情行重新计算。
+- `frontend/src/components/PortfolioStudyPanel.tsx`：只展示后端组合研究政策、统计、拒绝原因和限制警告，不复算成交、费用、权益或回撤。
 - `frontend/src/components`：纯展示组件和图表。
 
 后端是策略事实的唯一所有者。前端只消费快照，不能重新计算均线、多空、共振、信号或事件成功率。
+
+组合研究与无成本事件研究是两个并列模块。前者把每个候选信号转换为仅在 `executable_at` 对应次日开盘尝试一次的长仓意图：空仓 `SELL`、持仓中重复 `BUY`、显式 `SUSPENDED`、零成交、固定涨停买入、固定跌停卖出、滑点价格超出当日 OHLC 和资金不足都会形成可解释拒绝，不会自动延后重试。调用者可在同一 interface 传入带来源的逐日 `OPEN/SUSPENDED` 状态与精确上下限，未提供时才使用固定政策。成交后由后端更新现金、整手持仓、费用、税费、滑点影响、权益曲线、回撤和已实现/未实现盈亏。扩展未来 K 线不得改写既有成交决策。
+
+`cn-a-fixed-10pct-v1` 只是透明、确定性的研究政策，不是证券主数据或交易所规则 adapter。固定 10% 涨跌停与两位价格舍入不覆盖 ST、注册制 20%/30%、IPO 无涨跌停阶段、ETF、指数和历史规则变更；日 K 零成交只能阻止本模型成交，不能证明停牌；OHLC 也不能证明排队优先级或订单真实可成交。上述限制由后端随快照返回，前端不得隐藏。
 
 API 适配层同时拥有运行时远端网络总闸门。`CHAN_QUANT_REMOTE_NETWORK_ENABLED` 默认开启；关闭时，远端专属端点以结构化 HTTP `503` 失败，本地 synthetic、CSV 和 snapshot 研究链路继续可用。总闸门只控制运行时网络副作用，不改变数据模式、不生成替代数据，也不绕过离线导入器自身的明确确认参数。
 
@@ -98,18 +107,20 @@ Dashboard 和 Quote 展示以 `InstrumentIdentity` 为稳定身份。Quote 响�
 3. 周线状态只读取上一完整周；
 4. 信号条件在触发根收盘后确认；
 5. 事件执行使用下一根已存在 K 线开盘；
-6. setup 在相反分型确认时关闭，不使用未来结构回删既有信号。
+6. 组合研究只在 `executable_at` 对应开盘尝试一次，不用未来行情重写成交或拒绝；
+7. setup 在相反分型确认时关闭，不使用未来结构回删既有信号。
 
 自动测试逐一截取所有有效历史前缀，验证信号身份、结构索引和确认索引不会被后续 K 线改写。唯一允许的前沿变化是：数据停在确认根时执行索引为空，下一根 K 线到来后补充其开盘索引。
 
 ## 明确缺失的层
 
-v0.1 没有 K 线包含处理、中枢、背驰、受支持的正式行情 SDK、复权引擎、交易成本、持仓状态机或资金曲线。新浪适配器只是未文档化候选数据源；`unadjusted-observed` 是三标的有限现场证据，不是上游固定合同，也不会消除除权跳变。缺失能力不能通过前端展示层补算，也不能以参考截图的术语暗示已经实现。
+v0.1 没有 K 线包含处理、中枢、背驰、受支持的正式行情 SDK、复权引擎、证券级交易规则日历、多标的资金配置、订单簿回放或样本外验证。现有费用、固定涨跌停和持仓状态只是透明的假设组合研究，不证明真实可成交。新浪适配器只是未文档化候选数据源；`unadjusted-observed` 是三标的有限现场证据，不是上游固定合同，也不会消除除权跳变。缺失能力不能通过前端展示层补算，也不能以参考截图的术语暗示已经实现。
 
 ## 演进顺序
 
 1. 固定 Independent v0.1 规则、页面与 API 合同；
 2. 用人工小样例和前缀测试审计结构、指标和时间逻辑；
 3. 接入经过许可的真实历史数据源并明确复权口径；
-4. 增加交易成本和市场规则后，才实现持仓与组合回测；
-5. 进行样本外验证后，再单独决定是否讨论模拟盘。
+4. 用显式假设实现费用、固定市场约束、持仓与单标的组合研究，并保持全部限制警告；
+5. 取得证券级规则、公司行动与可成交证据后，才讨论交易所级回放或多标的资金配置；
+6. 进行样本外验证后，再单独决定是否讨论模拟盘。

@@ -211,6 +211,24 @@ HTTP 非 200、连接失败、超时、编码或 JSON 畸形映射为 HTTP `502`
 - 每个信号满足 `structure_at <= confirmed_at <= executable_at`；没有下一根 K 线时 `executable_at=null`。
 - 事件收益使用确认后的下一根可用 K 线开盘价，目标索引为执行索引加 `N - 1`。
 
+## 假设组合研究合同
+
+Dashboard 的 `portfolio_study` 与 `signal_performance` 并列。`signal_performance` 保留无成本的 5/10/20 日事件观察；`portfolio_study` 使用同一组后端信号，但通过 `cn-a-fixed-10pct-v1` 长仓政策维护现金、单一持仓和权益曲线。前端不得重算订单、费用、税费、滑点、权益、回撤或拒绝原因。
+
+每个 `decision` 必须返回原信号 ID、方向、`structure_at/confirmed_at/executable_at`、`FILLED/REJECTED/NOT_EXECUTABLE`、reason code、成交明细以及决策后的现金和持仓。支持的核心 reason code 包括：
+
+- `FILLED_NEXT_OPEN`、`NO_EXECUTION_BAR`；
+- `NO_POSITION`、`ALREADY_LONG`、`INSUFFICIENT_CASH`；
+- `ZERO_VOLUME`、`PRICE_LIMIT_UP`、`PRICE_LIMIT_DOWN`；
+- `SUSPENDED`（只在调用者提供带来源的逐日外部状态时使用）；
+- `SLIPPAGE_OUTSIDE_BAR`。
+
+订单仅在 `executable_at` 对应开盘尝试一次，不自动重试。买入数量按 `lot_size` 向下取整，并同时满足 `max_position_fraction`、佣金最低额和可用现金；卖出只平掉已有多头，不建立空头。`statistics` 返回期末权益、总收益、最大回撤、成交/拒绝、拒绝原因、已平仓胜率、成本、滑点影响、换手、暴露比例、期末持仓以及已实现/未实现盈亏。
+
+可选 `market_constraints` 逐日接受 `OPEN/SUSPENDED`、来源和精确上下限，并随响应原样返回以便审计；日期必须属于输入 K 线且不得重复。显式上下限优先于固定比例，显式 `SUSPENDED` 优先于成交量判断。当前 Dashboard 没有正式市场状态 adapter，默认数组为空。
+
+`methodology_status=HYPOTHETICAL_RESEARCH_ASSUMPTIONS` 是强制边界。固定 ±10% 和两位舍入不代表真实证券制度；零成交不证明停牌；OHLC 不证明排队和真实可成交。响应必须携带这些警告，合成数据结果也不能被解释为市场表现。
+
 ## 多标的走势对比接口
 
 ```http

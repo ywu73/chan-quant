@@ -10,6 +10,7 @@ import { IndexPerformancePage } from "./components/IndexPerformancePage";
 import { InstrumentSearch, normalizeDirectSymbol } from "./components/InstrumentSearch";
 import { MetricCard } from "./components/MetricCard";
 import { PerformanceCard } from "./components/PerformanceCard";
+import { PortfolioStudyPanel } from "./components/PortfolioStudyPanel";
 import { QuotePanel } from "./components/QuotePanel";
 import { SiteHeader } from "./components/SiteHeader";
 import { startQuotePolling } from "./quotePolling";
@@ -169,6 +170,8 @@ function Dashboard({
           <PerformanceCard performance={performance.sell} />
         </div>
       </section>
+
+      <PortfolioStudyPanel study={snapshot.portfolio_study} />
 
       <section className="chart-section">
         <h2>▥ 缠论 K 线 · 买卖点 · 策略线</h2>

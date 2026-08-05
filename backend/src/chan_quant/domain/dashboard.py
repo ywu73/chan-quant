@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from chan_quant.domain.data_quality import DataQualityReport
 from chan_quant.domain.instrument import InstrumentIdentity
+from chan_quant.domain.portfolio import PortfolioStudy
 
 TrendState = Literal["BULLISH", "BEARISH", "NEUTRAL"]
 
@@ -177,5 +178,6 @@ class DashboardSnapshot(BaseModel):
     metrics: list[MetricCard]
     recommendation: Recommendation
     signal_performance: SignalPerformance
+    portfolio_study: PortfolioStudy
     chart: ChartSnapshot
     strategy: StrategyMetadata

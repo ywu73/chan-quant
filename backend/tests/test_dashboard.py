@@ -60,6 +60,10 @@ def test_calculated_demo_snapshot_accounting_and_signal_timing() -> None:
     assert snapshot.is_mock is True
     assert snapshot.strategy.rule_status == "DRAFT"
     assert snapshot.strategy.version == "independent-v0.1.0"
+    assert snapshot.portfolio_study.methodology_status == ("HYPOTHETICAL_RESEARCH_ASSUMPTIONS")
+    assert snapshot.portfolio_study.policy.version == "cn-a-fixed-10pct-v1"
+    assert snapshot.portfolio_study.statistics.starting_cash == 100_000
+    assert snapshot.portfolio_study.warnings[0].code == "FIXED_LIMIT_ASSUMPTION"
     assert all(not signal.id.startswith("MOCK-") for signal in snapshot.chart.signals)
 
     for signal in snapshot.chart.signals:
