@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from threading import Barrier
 
 import httpx
 import pytest
@@ -138,3 +139,62 @@ def test_batch_source_rejects_an_empty_assignment_without_inferring_its_date() -
         )
 
     assert captured.value.code == "SINA_BREADTH_MISSING_QUOTE"
+
+
+def test_batch_source_loads_batches_in_parallel_and_keeps_requested_order() -> None:
+    barrier = Barrier(3, timeout=2)
+    symbols = ["000001.SZ", "600000.SH", "688001.SH"]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        barrier.wait()
+        sina_symbol = request.url.params["list"]
+        content = _quote_line(
+            sina_symbol,
+            name=sina_symbol,
+            previous_close="10.000",
+            last_price="10.100",
+        ).encode("gb18030")
+        return httpx.Response(200, content=content)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        capture = fetch_sina_market_breadth(
+            symbols,
+            batch_size=1,
+            client=client,
+            max_workers=3,
+        )
+
+    assert [batch.index for batch in capture.raw_batches] == [1, 2, 3]
+    assert [observation.symbol for observation in capture.observations] == symbols
+    assert capture.request_count == 3
+    assert capture.session_date == date(2026, 7, 31)
+
+
+def test_parallel_batch_source_rejects_mixed_provider_dates() -> None:
+    barrier = Barrier(2, timeout=2)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        barrier.wait()
+        sina_symbol = request.url.params["list"]
+        quote_date = "2026-07-31" if sina_symbol == "sz000001" else "2026-07-30"
+        content = _quote_line(
+            sina_symbol,
+            name=sina_symbol,
+            previous_close="10.000",
+            last_price="10.100",
+            quote_date=quote_date,
+        ).encode("gb18030")
+        return httpx.Response(200, content=content)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(SinaMarketBreadthSourceError) as captured,
+    ):
+        fetch_sina_market_breadth(
+            ["000001.SZ", "600000.SH"],
+            batch_size=1,
+            client=client,
+            max_workers=2,
+        )
+
+    assert captured.value.code == "SINA_BREADTH_SESSION_DATE_MISMATCH"

@@ -10,6 +10,8 @@ from chan_quant.data.exchange_universe_source import (
 from chan_quant.data.remote_market_breadth import (
     RemoteMarketBreadthError,
     RemoteMarketBreadthService,
+    _default_quote_source,
+    _default_universe_source,
 )
 from chan_quant.data.sina_market_breadth_source import SinaMarketBreadthCapture
 from chan_quant.domain.market_breadth import BreadthObservation, BreadthUniverseMember
@@ -110,6 +112,38 @@ def test_remote_service_builds_observed_snapshot_and_caches_success() -> None:
         "REMOTE_OBSERVATION_NOT_AUDITABLE",
         "SINA_UNDOCUMENTED_SOURCE",
     ]
+
+
+def test_runtime_sources_use_three_bounded_workers(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, int, int | None]] = []
+
+    def fetch_universe(*, max_workers: int) -> ExchangeUniverseCapture:
+        calls.append(("universe", max_workers, None))
+        return _universe()
+
+    def fetch_quotes(
+        symbols: list[str],
+        *,
+        batch_size: int,
+        max_workers: int,
+    ) -> SinaMarketBreadthCapture:
+        assert symbols == ["000001.SZ", "600000.SH"]
+        calls.append(("quotes", max_workers, batch_size))
+        return _quotes()
+
+    monkeypatch.setattr(
+        "chan_quant.data.remote_market_breadth.fetch_exchange_a_share_universe",
+        fetch_universe,
+    )
+    monkeypatch.setattr(
+        "chan_quant.data.remote_market_breadth.fetch_sina_market_breadth",
+        fetch_quotes,
+    )
+
+    _default_universe_source()
+    _default_quote_source(["000001.SZ", "600000.SH"])
+
+    assert calls == [("universe", 3, None), ("quotes", 3, 100)]
 
 
 def test_remote_service_force_refresh_bypasses_success_cache() -> None:

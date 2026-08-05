@@ -23,6 +23,8 @@ from chan_quant.domain.market_breadth import (
 )
 from chan_quant.services.market_breadth import MarketBreadthBuildError, build_market_breadth
 
+REMOTE_BREADTH_MAX_WORKERS = 3
+
 
 class RemoteMarketBreadthError(ValueError):
     """Raised when a remote observation cannot satisfy the breadth contract."""
@@ -39,8 +41,16 @@ class _CacheEntry:
     stored_at: float
 
 
+def _default_universe_source() -> ExchangeUniverseCapture:
+    return fetch_exchange_a_share_universe(max_workers=REMOTE_BREADTH_MAX_WORKERS)
+
+
 def _default_quote_source(symbols: list[str]) -> SinaMarketBreadthCapture:
-    return fetch_sina_market_breadth(symbols, batch_size=100)
+    return fetch_sina_market_breadth(
+        symbols,
+        batch_size=100,
+        max_workers=REMOTE_BREADTH_MAX_WORKERS,
+    )
 
 
 class RemoteMarketBreadthService:
@@ -49,7 +59,7 @@ class RemoteMarketBreadthService:
     def __init__(
         self,
         *,
-        universe_source: Callable[[], ExchangeUniverseCapture] = fetch_exchange_a_share_universe,
+        universe_source: Callable[[], ExchangeUniverseCapture] = _default_universe_source,
         quote_source: Callable[[list[str]], SinaMarketBreadthCapture] = _default_quote_source,
         clock: Callable[[], datetime] | None = None,
         timer: Callable[[], float] = time.monotonic,

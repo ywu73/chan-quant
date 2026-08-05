@@ -51,6 +51,7 @@ app = FastAPI(
 
 COMPARISON_MIN_SYMBOLS = 2
 COMPARISON_MAX_SYMBOLS = 8
+COMPARISON_MAX_WORKERS = 4
 BATCH_QUOTE_MIN_SYMBOLS = 1
 BATCH_QUOTE_MAX_SYMBOLS = 8
 
@@ -281,6 +282,7 @@ def market_comparison(
             _sina_comparison_input,
             start=start,
             end=end,
+            max_workers=COMPARISON_MAX_WORKERS,
         )
     except (SinaDataError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

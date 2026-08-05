@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
+from threading import Barrier
 
 import httpx
 from openpyxl import Workbook
@@ -62,4 +63,37 @@ def test_exchange_universe_source_combines_official_sse_and_szse_lists() -> None
         "CHINEXT",
         "MAIN",
         "STAR",
+    ]
+
+
+def test_exchange_universe_source_loads_independent_lists_in_parallel() -> None:
+    observed_at = datetime(2026, 8, 2, 20, 0, tzinfo=SHANGHAI_TZ)
+    barrier = Barrier(3, timeout=2)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        barrier.wait()
+        if request.url.host == "query.sse.com.cn":
+            stock_type = request.url.params["STOCK_TYPE"]
+            row = {
+                "A_STOCK_CODE": "600000" if stock_type == "1" else "688001",
+                "SEC_NAME_CN": "浦发银行" if stock_type == "1" else "华兴源创",
+                "LIST_DATE": "19991110" if stock_type == "1" else "20190722",
+                "DELIST_DATE": "-",
+            }
+            return httpx.Response(200, json={"result": [row]})
+        return httpx.Response(200, content=_szse_workbook())
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        capture = fetch_exchange_a_share_universe(
+            client=client,
+            clock=lambda: observed_at,
+            minimum_members=4,
+            max_workers=3,
+        )
+
+    assert [member.symbol for member in capture.members] == [
+        "000001.SZ",
+        "300001.SZ",
+        "600000.SH",
+        "688001.SH",
     ]

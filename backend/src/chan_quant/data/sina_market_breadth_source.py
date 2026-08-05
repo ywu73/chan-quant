@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from datetime import time as quote_time_type
@@ -44,6 +45,17 @@ class SinaMarketBreadthCapture:
     completed_at: datetime
     request_count: int
     batch_size: int
+    session_date: date
+
+
+@dataclass(frozen=True)
+class _FetchedBatch:
+    index: int
+    symbols: tuple[str, ...]
+    requested_at: datetime
+    received_at: datetime
+    content: bytes
+    observations: dict[str, BreadthObservation]
     session_date: date
 
 
@@ -165,6 +177,96 @@ def _parse_batch(
     return parsed, observed_session_date
 
 
+def _request_batch_content(
+    http_client: httpx.Client,
+    batch: Sequence[str],
+    *,
+    max_retries: int,
+    sleeper: Callable[[float], None],
+) -> bytes:
+    response: httpx.Response | None = None
+    last_error: httpx.HTTPError | None = None
+    batch_url = f"{SINA_QUOTE_URL}?list={','.join(to_sina_symbol(symbol) for symbol in batch)}"
+    for attempt in range(max_retries + 1):
+        try:
+            candidate = http_client.get(
+                batch_url,
+                headers={
+                    "Accept": "text/plain, */*",
+                    "Referer": "https://finance.sina.com.cn/",
+                    "User-Agent": "ChanQuant/0.2 local-research",
+                },
+                timeout=httpx.Timeout(
+                    connect=3.0,
+                    read=10.0,
+                    write=3.0,
+                    pool=3.0,
+                ),
+            )
+        except httpx.HTTPError as error:
+            last_error = error
+            if attempt < max_retries:
+                sleeper(0.25 * (2**attempt))
+                continue
+            break
+        if candidate.status_code >= 500 and attempt < max_retries:
+            sleeper(0.25 * (2**attempt))
+            continue
+        response = candidate
+        break
+    if response is None:
+        assert last_error is not None
+        raise SinaMarketBreadthSourceError(
+            "SINA_BREADTH_HTTP_ERROR",
+            f"Sina breadth request failed: {last_error}",
+        ) from last_error
+    if response.status_code == 429:
+        raise SinaMarketBreadthSourceError(
+            "SINA_BREADTH_RATE_LIMITED",
+            "Sina breadth request returned HTTP 429",
+        )
+    if response.status_code != 200:
+        raise SinaMarketBreadthSourceError(
+            "SINA_BREADTH_HTTP_ERROR",
+            f"Sina breadth request returned HTTP {response.status_code}",
+        )
+    return response.content
+
+
+def _fetch_batch(
+    index: int,
+    batch: tuple[str, ...],
+    *,
+    http_client: httpx.Client,
+    now: Callable[[], datetime],
+    expected_session_date: date | None,
+    max_retries: int,
+    sleeper: Callable[[float], None],
+) -> _FetchedBatch:
+    requested_at = now()
+    content = _request_batch_content(
+        http_client,
+        batch,
+        max_retries=max_retries,
+        sleeper=sleeper,
+    )
+    received_at = now()
+    observations, observed_session_date = _parse_batch(
+        content,
+        requested_symbols=batch,
+        expected_session_date=expected_session_date,
+    )
+    return _FetchedBatch(
+        index=index,
+        symbols=batch,
+        requested_at=requested_at,
+        received_at=received_at,
+        content=content,
+        observations=observations,
+        session_date=observed_session_date,
+    )
+
+
 def fetch_sina_market_breadth(
     symbols: Sequence[str],
     *,
@@ -174,6 +276,7 @@ def fetch_sina_market_breadth(
     clock: Callable[[], datetime] | None = None,
     max_retries: int = 2,
     sleeper: Callable[[float], None] = time.sleep,
+    max_workers: int = 1,
 ) -> SinaMarketBreadthCapture:
     if not symbols:
         raise SinaMarketBreadthSourceError(
@@ -190,6 +293,11 @@ def fetch_sina_market_breadth(
             "SINA_BREADTH_RETRY_LIMIT_INVALID",
             "Sina breadth retry limit must be between 0 and 2",
         )
+    if not 1 <= max_workers <= 8:
+        raise SinaMarketBreadthSourceError(
+            "SINA_BREADTH_WORKER_LIMIT_INVALID",
+            "Sina breadth max_workers must be between 1 and 8",
+        )
     canonical_symbols = tuple(symbol.strip().upper() for symbol in symbols)
     if len(set(canonical_symbols)) != len(canonical_symbols):
         raise SinaMarketBreadthSourceError(
@@ -204,79 +312,78 @@ def fetch_sina_market_breadth(
     observations: dict[str, BreadthObservation] = {}
     raw_batches: list[SinaRawBatch] = []
     observed_session_date = session_date
+    batches = [
+        tuple(canonical_symbols[offset : offset + batch_size])
+        for offset in range(0, len(canonical_symbols), batch_size)
+    ]
     try:
-        for offset in range(0, len(canonical_symbols), batch_size):
-            batch = canonical_symbols[offset : offset + batch_size]
-            requested_at = started_at if not raw_batches else raw_batches[-1].received_at
-            response: httpx.Response | None = None
-            last_error: httpx.HTTPError | None = None
-            batch_url = (
-                f"{SINA_QUOTE_URL}?list={','.join(to_sina_symbol(symbol) for symbol in batch)}"
-            )
-            for attempt in range(max_retries + 1):
-                try:
-                    candidate = http_client.get(
-                        batch_url,
-                        headers={
-                            "Accept": "text/plain, */*",
-                            "Referer": "https://finance.sina.com.cn/",
-                            "User-Agent": "ChanQuant/0.2 local-research",
-                        },
-                        timeout=httpx.Timeout(
-                            connect=3.0,
-                            read=10.0,
-                            write=3.0,
-                            pool=3.0,
+        if max_workers == 1 or len(batches) == 1:
+            for index, batch in enumerate(batches, start=1):
+                requested_at = started_at if not raw_batches else raw_batches[-1].received_at
+                content = _request_batch_content(
+                    http_client,
+                    batch,
+                    max_retries=max_retries,
+                    sleeper=sleeper,
+                )
+                received_at = now()
+                parsed, observed_session_date = _parse_batch(
+                    content,
+                    requested_symbols=batch,
+                    expected_session_date=observed_session_date,
+                )
+                observations.update(parsed)
+                raw_batches.append(
+                    SinaRawBatch(
+                        index=index,
+                        symbols=batch,
+                        requested_at=requested_at,
+                        received_at=received_at,
+                        content=content,
+                    )
+                )
+        else:
+            with ThreadPoolExecutor(max_workers=min(max_workers, len(batches))) as executor:
+                futures = [
+                    executor.submit(
+                        _fetch_batch,
+                        index,
+                        batch,
+                        http_client=http_client,
+                        now=now,
+                        expected_session_date=session_date,
+                        max_retries=max_retries,
+                        sleeper=sleeper,
+                    )
+                    for index, batch in enumerate(batches, start=1)
+                ]
+                fetched_batches = [future.result() for future in futures]
+
+            observed_session_date = session_date or fetched_batches[0].session_date
+            for fetched in fetched_batches:
+                if fetched.session_date != observed_session_date:
+                    raise SinaMarketBreadthSourceError(
+                        "SINA_BREADTH_SESSION_DATE_MISMATCH",
+                        (
+                            f"{fetched.symbols[0]} quote date {fetched.session_date} "
+                            f"does not match {observed_session_date}"
                         ),
                     )
-                except httpx.HTTPError as error:
-                    last_error = error
-                    if attempt < max_retries:
-                        sleeper(0.25 * (2**attempt))
-                        continue
-                    break
-                if candidate.status_code >= 500 and attempt < max_retries:
-                    sleeper(0.25 * (2**attempt))
-                    continue
-                response = candidate
-                break
-            if response is None:
-                assert last_error is not None
-                raise SinaMarketBreadthSourceError(
-                    "SINA_BREADTH_HTTP_ERROR",
-                    f"Sina breadth request failed: {last_error}",
-                ) from last_error
-            if response.status_code == 429:
-                raise SinaMarketBreadthSourceError(
-                    "SINA_BREADTH_RATE_LIMITED",
-                    "Sina breadth request returned HTTP 429",
+                observations.update(fetched.observations)
+                raw_batches.append(
+                    SinaRawBatch(
+                        index=fetched.index,
+                        symbols=fetched.symbols,
+                        requested_at=fetched.requested_at,
+                        received_at=fetched.received_at,
+                        content=fetched.content,
+                    )
                 )
-            if response.status_code != 200:
-                raise SinaMarketBreadthSourceError(
-                    "SINA_BREADTH_HTTP_ERROR",
-                    f"Sina breadth request returned HTTP {response.status_code}",
-                )
-            received_at = now()
-            parsed, observed_session_date = _parse_batch(
-                response.content,
-                requested_symbols=batch,
-                expected_session_date=observed_session_date,
-            )
-            observations.update(parsed)
-            raw_batches.append(
-                SinaRawBatch(
-                    index=len(raw_batches) + 1,
-                    symbols=tuple(batch),
-                    requested_at=requested_at,
-                    received_at=received_at,
-                    content=response.content,
-                )
-            )
     finally:
         if owns_client:
             http_client.close()
 
-    completed_at = raw_batches[-1].received_at
+    completed_at = max(batch.received_at for batch in raw_batches)
     return SinaMarketBreadthCapture(
         observations=tuple(observations[symbol] for symbol in canonical_symbols),
         raw_batches=tuple(raw_batches),

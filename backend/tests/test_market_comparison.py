@@ -1,4 +1,5 @@
 from datetime import date
+from threading import Barrier
 
 import pytest
 from fastapi.testclient import TestClient
@@ -131,6 +132,32 @@ def test_comparison_keeps_successful_series_when_one_symbol_fails() -> None:
             "message": "测试上游不可用",
         }
     ]
+
+
+def test_comparison_loads_in_parallel_but_keeps_requested_order() -> None:
+    symbols = ["000001.SZ", "300001.SZ", "600000.SH", "688001.SH"]
+    barrier = Barrier(len(symbols), timeout=2)
+
+    def load(symbol: str) -> ComparisonInput:
+        barrier.wait()
+        if symbol == "300001.SZ":
+            raise ComparisonLoadError("UPSTREAM_UNAVAILABLE", "test upstream unavailable")
+        return _input(symbol, symbol, [_bar(1, 100), _bar(2, 101)])
+
+    result = build_market_comparison(symbols, load, max_workers=4)
+
+    assert result.status == "PARTIAL"
+    assert [series.instrument.symbol for series in result.series] == [
+        "000001.SZ",
+        "600000.SH",
+        "688001.SH",
+    ]
+    assert [failure.symbol for failure in result.failures] == ["300001.SZ"]
+
+
+def test_comparison_rejects_non_positive_worker_limit() -> None:
+    with pytest.raises(ValueError, match="comparison max_workers must be positive"):
+        build_market_comparison([], lambda symbol: _input(symbol, symbol, []), max_workers=0)
 
 
 def test_comparison_applies_requested_range_before_normalizing() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
@@ -230,19 +231,32 @@ def fetch_exchange_a_share_universe(
     client: httpx.Client | None = None,
     clock: Callable[[], datetime] | None = None,
     minimum_members: int = 5000,
+    max_workers: int = 1,
 ) -> ExchangeUniverseCapture:
     if minimum_members <= 0:
         raise ValueError("minimum_members must be positive")
+    if not 1 <= max_workers <= 3:
+        raise ValueError("exchange universe max_workers must be between 1 and 3")
     now = clock or (lambda: datetime.now(SHANGHAI_TZ))
     observed_at = now()
     owns_client = client is None
     http_client = client or httpx.Client(follow_redirects=False)
     try:
-        members = [
-            *_sse_members(http_client, stock_type="1"),
-            *_sse_members(http_client, stock_type="8"),
-            *_szse_members(http_client),
-        ]
+        if max_workers == 1:
+            member_groups = [
+                _sse_members(http_client, stock_type="1"),
+                _sse_members(http_client, stock_type="8"),
+                _szse_members(http_client),
+            ]
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [
+                    executor.submit(_sse_members, http_client, stock_type="1"),
+                    executor.submit(_sse_members, http_client, stock_type="8"),
+                    executor.submit(_szse_members, http_client),
+                ]
+                member_groups = [future.result() for future in futures]
+        members = [member for group in member_groups for member in group]
     finally:
         if owns_client:
             http_client.close()

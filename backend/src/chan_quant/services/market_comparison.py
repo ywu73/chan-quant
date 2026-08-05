@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date
 
@@ -64,32 +65,47 @@ def _drawdown(
     return max_drawdown, max_peak_at, max_trough_at
 
 
+def _load_one(
+    symbol: str,
+    loader: Callable[[str], ComparisonInput],
+    start: date | None,
+    end: date | None,
+) -> _LoadedSeries | ComparisonFailure:
+    try:
+        source = loader(symbol)
+    except ComparisonLoadError as error:
+        return _failure(symbol, error.code, error.message)
+
+    bars = [
+        bar
+        for bar in source.bars
+        if (start is None or bar.date >= start) and (end is None or bar.date <= end)
+    ]
+    try:
+        validate_bar_sequence(bars, minimum=2)
+    except ValueError as error:
+        return _failure(symbol, "INSUFFICIENT_DATA", str(error))
+    return _LoadedSeries(source=source, bars=bars)
+
+
 def _load_requested(
     symbols: list[str],
     loader: Callable[[str], ComparisonInput],
     start: date | None,
     end: date | None,
+    max_workers: int,
 ) -> tuple[list[_LoadedSeries], list[ComparisonFailure]]:
-    loaded: list[_LoadedSeries] = []
-    failures: list[ComparisonFailure] = []
-    for symbol in symbols:
-        try:
-            source = loader(symbol)
-        except ComparisonLoadError as error:
-            failures.append(_failure(symbol, error.code, error.message))
-            continue
+    if max_workers == 1 or len(symbols) <= 1:
+        outcomes = [_load_one(symbol, loader, start, end) for symbol in symbols]
+    else:
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(symbols))) as executor:
+            futures = [
+                executor.submit(_load_one, symbol, loader, start, end) for symbol in symbols
+            ]
+            outcomes = [future.result() for future in futures]
 
-        bars = [
-            bar
-            for bar in source.bars
-            if (start is None or bar.date >= start) and (end is None or bar.date <= end)
-        ]
-        try:
-            validate_bar_sequence(bars, minimum=2)
-        except ValueError as error:
-            failures.append(_failure(symbol, "INSUFFICIENT_DATA", str(error)))
-            continue
-        loaded.append(_LoadedSeries(source=source, bars=bars))
+    loaded = [outcome for outcome in outcomes if isinstance(outcome, _LoadedSeries)]
+    failures = [outcome for outcome in outcomes if isinstance(outcome, ComparisonFailure)]
     return loaded, failures
 
 
@@ -168,12 +184,15 @@ def build_market_comparison(
     *,
     start: date | None = None,
     end: date | None = None,
+    max_workers: int = 1,
 ) -> MarketComparison:
     """Load, align, and calculate a comparison through one auditable seam."""
     if start is not None and end is not None and start > end:
         raise ValueError("comparison start date must not be after end date")
+    if max_workers <= 0:
+        raise ValueError("comparison max_workers must be positive")
 
-    loaded, failures = _load_requested(symbols, loader, start, end)
+    loaded, failures = _load_requested(symbols, loader, start, end, max_workers)
     aligned, common_from, common_to = _align_common_window(loaded, failures)
     dates = sorted({bar.date for item in aligned for bar in item.bars})
     series = [_build_series(item, dates) for item in aligned]
