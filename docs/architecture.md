@@ -40,6 +40,7 @@
 - `backend/src/chan_quant/domain/data_quality.py`：稳定的数据清单、数据集身份、完整性状态、复权依据和 reason code 合同。
 - `backend/src/chan_quant/domain/instrument.py`：稳定标的身份，包括规范代码、名称、交易所、可确认的资产类别与价格精度。
 - `backend/src/chan_quant/audit`：候选行情与参考日线、交易日历及历史快照的可复现质量审计。
+- `backend/src/chan_quant/audit/data_source_registry.py`：校验能力级数据源台账的合同、许可状态、运行范围与禁止自动降级等政策不变量；不负责运行时选源。
 - `backend/src/chan_quant/strategy`：指标、结构和 Independent v0.1 信号引擎。
 - `backend/src/chan_quant/backtest`：无成本的信号事件研究，不是组合回测。
 - `backend/src/chan_quant/services`：合成行情生成与 Dashboard 快照组装。
@@ -82,6 +83,8 @@ API 适配层同时拥有运行时远端网络总闸门。`CHAN_QUANT_REMOTE_NET
 Dashboard 和 Quote 展示以 `InstrumentIdentity` 为稳定身份。Quote 响应中的名称保留为上游原始字段，但不能覆盖 Dashboard 主标题，因为新浪实时接口可能对 ETF 返回简称。ETF 日 K 可以进入现有策略计算，但使用 `adjustment=unspecified` 和独立风险提示；三只股票样本的复权观察不得外推到 ETF。
 
 审计模块负责对照原始日线、公司行动、交易日历和重复快照；审计结论由后端生成，不在前端重新推导，也不会把实时 Quote 引入日线策略。
+
+机器可校验的 `docs/data-source-registry.json` 把每个外部或用户提供来源按具体能力登记。注册表只记录证据与 GO/NO-GO，不装配 adapter，也不改变运行时模式；远端来源仍必须由后端访问、经过总闸门并显式失败。供应商的某一能力通过研究不能外推到其其他端点，官方公开来源也不能自动推导出商业或再分发许可。
 
 实时状态也由后端给出。前端只把 `LIVE/DELAYED/CLOSED` 格式化为“实时/延迟/已收盘”，请求失败则明确显示“不可用”；失败时旧价会被清除，日线 Dashboard 和历史比较继续工作。多标的 Quote 使用一个共享轮询模块管理最多八个独立请求，页面隐藏或组合失效时中止当前周期，恢复可见后重新开始；任何晚到响应都不能写回已经停止的周期。
 

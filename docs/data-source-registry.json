@@ -1,0 +1,293 @@
+{
+  "schema_version": "data-source-registry-v0.1",
+  "scope": "external-and-user-supplied-market-inputs",
+  "reviewed_at": "2026-08-05T22:09:52+08:00",
+  "sources": [
+    {
+      "source_id": "user-csv-daily-bars",
+      "provider": "user-supplied CSV",
+      "capability": "DAILY_BARS",
+      "status": "OFFLINE_ONLY",
+      "contract_status": "USER_DECLARED",
+      "license_status": "USER_RESPONSIBLE",
+      "remote": false,
+      "backend_only": true,
+      "remote_network_gate": false,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": ["NONE", "QFQ", "HFQ", "UNSPECIFIED"],
+      "last_verified_at": null,
+      "evidence_documents": ["docs/data-contract.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "The user owns the source, authorization, and adjustment declaration.",
+        "A single CSV cannot represent a multi-instrument comparison source."
+      ]
+    },
+    {
+      "source_id": "auditable-market-snapshot",
+      "provider": "user-authorized external export",
+      "capability": "DAILY_BARS",
+      "status": "OFFLINE_ONLY",
+      "contract_status": "USER_DECLARED",
+      "license_status": "USER_RESPONSIBLE",
+      "remote": false,
+      "backend_only": true,
+      "remote_network_gate": false,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": ["NONE", "QFQ", "HFQ"],
+      "last_verified_at": null,
+      "evidence_documents": ["docs/market-snapshot.md", "docs/data-contract.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "Integrity checks do not establish provider licensing or adjustment economics.",
+        "The current package contract contains exactly one instrument."
+      ]
+    },
+    {
+      "source_id": "sina-undocumented-kline",
+      "provider": "Sina Finance web endpoint",
+      "capability": "DAILY_BARS",
+      "status": "ACTIVE_RESEARCH",
+      "contract_status": "UNDOCUMENTED_OBSERVED",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": ["UNADJUSTED_OBSERVED", "UNSPECIFIED"],
+      "last_verified_at": "2026-07-31T00:57:00+08:00",
+      "evidence_documents": ["docs/sina-data-source.md", "docs/sina-adjustment-research.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "No public field contract, fixed adjustment contract, SLA, or redistribution grant was found.",
+        "Unadjusted-observed is finite sample evidence and is not a provider guarantee."
+      ]
+    },
+    {
+      "source_id": "sina-undocumented-quote",
+      "provider": "Sina Finance web endpoint",
+      "capability": "QUOTE",
+      "status": "ACTIVE_RESEARCH",
+      "contract_status": "UNDOCUMENTED_OBSERVED",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": [],
+      "last_verified_at": "2026-07-31T00:57:00+08:00",
+      "evidence_documents": ["docs/sina-data-source.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "The endpoint has shown intermittent delays and requires provider-specific request headers.",
+        "Observed quote status is not a trading-grade market-status contract."
+      ]
+    },
+    {
+      "source_id": "sina-undocumented-instrument-search",
+      "provider": "Sina Finance suggestion endpoint",
+      "capability": "INSTRUMENT_SEARCH",
+      "status": "ACTIVE_RESEARCH",
+      "contract_status": "UNDOCUMENTED_OBSERVED",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": [],
+      "last_verified_at": null,
+      "evidence_documents": ["docs/architecture.md", "docs/data-contract.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "Provider category 11 is not strong enough to distinguish stocks from index aliases.",
+        "Search identity evidence does not establish board or index membership."
+      ]
+    },
+    {
+      "source_id": "sina-undocumented-market-breadth",
+      "provider": "Sina Finance batch quote endpoint",
+      "capability": "MARKET_BREADTH_QUOTES",
+      "status": "ACTIVE_RESEARCH",
+      "contract_status": "UNDOCUMENTED_OBSERVED",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": [],
+      "last_verified_at": "2026-08-02T14:53:00+08:00",
+      "evidence_documents": ["docs/a-share-market-breadth-research.md", "docs/sina-market-breadth-importer.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "Runtime observations do not retain raw evidence and are not auditable snapshots.",
+        "Anonymous full-market access has no verified field contract, SLA, or redistribution grant."
+      ]
+    },
+    {
+      "source_id": "sse-official-universe",
+      "provider": "Shanghai Stock Exchange",
+      "capability": "UNIVERSE",
+      "status": "ACTIVE_RESEARCH",
+      "contract_status": "OFFICIAL_PRIMARY_SOURCE",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH"],
+      "adjustments": [],
+      "last_verified_at": "2026-08-02T14:53:00+08:00",
+      "evidence_documents": ["docs/a-share-market-breadth-research.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "The observed list does not expose a single official as-of date for every row.",
+        "Official publication does not by itself establish redistribution rights."
+      ]
+    },
+    {
+      "source_id": "szse-official-universe",
+      "provider": "Shenzhen Stock Exchange",
+      "capability": "UNIVERSE",
+      "status": "ACTIVE_RESEARCH",
+      "contract_status": "OFFICIAL_PRIMARY_SOURCE",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SZ"],
+      "adjustments": [],
+      "last_verified_at": "2026-08-02T14:53:00+08:00",
+      "evidence_documents": ["docs/a-share-market-breadth-research.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "Current runtime use is limited to the documented Shanghai-Shenzhen A-share universe.",
+        "Official publication does not by itself establish redistribution rights."
+      ]
+    },
+    {
+      "source_id": "csi-official-index-membership",
+      "provider": "China Securities Index Co., Ltd.",
+      "capability": "INDEX_MEMBERSHIP",
+      "status": "OFFLINE_ONLY",
+      "contract_status": "OFFICIAL_PRIMARY_SOURCE",
+      "license_status": "UNVERIFIED",
+      "remote": false,
+      "backend_only": false,
+      "remote_network_gate": false,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": [],
+      "last_verified_at": null,
+      "evidence_documents": ["docs/industry-board-presets-research.md"],
+      "decisions": {
+        "local_research": "GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "Stored top-eight observations are versioned subsets, not full indices or official portfolios.",
+        "Membership evidence does not grant index-data redistribution rights."
+      ]
+    },
+    {
+      "source_id": "tencent-undocumented-kline-candidate",
+      "provider": "Tencent Finance web endpoint",
+      "capability": "DAILY_BARS",
+      "status": "CANDIDATE",
+      "contract_status": "UNDOCUMENTED_OBSERVED",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": ["NONE", "QFQ", "HFQ"],
+      "last_verified_at": "2026-08-05T22:01:09+08:00",
+      "evidence_documents": ["docs/tencent-data-source-research.md"],
+      "decisions": {
+        "local_research": "NO_GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "No endpoint-specific developer contract, authorization, rate limit, SLA, or redistribution grant was found in the reviewed Tencent sources.",
+        "Observed adjustment lengths, silent field substitution, invalid-symbol behavior, and historical stability do not satisfy the runtime contract."
+      ]
+    },
+    {
+      "source_id": "tencent-undocumented-quote-candidate",
+      "provider": "Tencent Finance web endpoint",
+      "capability": "QUOTE",
+      "status": "CANDIDATE",
+      "contract_status": "UNDOCUMENTED_OBSERVED",
+      "license_status": "UNVERIFIED",
+      "remote": true,
+      "backend_only": true,
+      "remote_network_gate": true,
+      "markets": ["CN_SH", "CN_SZ"],
+      "adjustments": [],
+      "last_verified_at": "2026-08-05T22:01:09+08:00",
+      "evidence_documents": ["docs/tencent-data-source-research.md"],
+      "decisions": {
+        "local_research": "NO_GO",
+        "production_market_data": "NO_GO",
+        "commercial_use": "NO_GO",
+        "redistribution": "NO_GO",
+        "automatic_fallback": "NO_GO"
+      },
+      "known_limitations": [
+        "No endpoint-specific developer contract, field dictionary, authorization, rate limit, SLA, or redistribution grant was found in the reviewed Tencent sources.",
+        "Only a closed-market sample was observed; market phases, suspension semantics, batch omissions, and timestamp meaning remain unverified."
+      ]
+    }
+  ]
+}
