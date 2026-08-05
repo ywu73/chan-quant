@@ -1,7 +1,7 @@
 # Chan Quant 实现路线图与状态总账
 
 > 状态日期：2026-08-06（Asia/Shanghai）
-> 已集成基线：`main@9bdd0f2`
+> 已集成基线：`main@48808ba`
 > 产品定位：研究与审计工具，不是交易系统或生产行情服务
 
 ## 文档职责
@@ -34,8 +34,8 @@
 
 | 状态 | 数量 | 说明 |
 |---|---:|---|
-| `INTEGRATED` | 19 | 集成事实基线 `main@9bdd0f2` 已具备的产品与工程能力 |
-| `READY_ON_BRANCH` | 1 | `MARKET-001` 已在独立任务分支验证，尚未集成 |
+| `INTEGRATED` | 20 | 集成事实基线 `main@48808ba` 已具备的产品与工程能力 |
+| `READY_ON_BRANCH` | 0 | 当前没有已验证但尚未集成的任务分支 |
 | `IN_PROGRESS` | 0 | 当前没有正在实施的已批准任务 |
 | `APPROVED_NOT_STARTED` | 0 | 当前没有已批准但尚未开工的任务 |
 | `PROPOSED` | 2 | 估值、基金研究闭环 |
@@ -44,7 +44,7 @@
 
 ## 已集成目标
 
-以下项目均以 `main@9bdd0f2` 为集成事实基线。
+以下项目均以 `main@48808ba` 为集成事实基线。
 
 | ID | 目标 | 状态 | 已交付行为 | 主要证据 |
 |---|---|---|---|---|
@@ -57,6 +57,7 @@
 | `QUOTE-001` | 后端批量 Quote 接口 | `INTEGRATED` | 一次请求接受 1–8 个规范代码，后端完成字面逗号传输、身份对应和逐项失败；比较与指数页保留 8 秒可见性轮询、取消和晚到结果抑制 | `0bf5bee`；主分支 Ruff、149 项后端测试、75 项前端测试与前端构建通过 |
 | `DATA-004` | 证券搜索与规范身份 | `INTEGRATED` | 后端解析沪深规范代码、名称、交易所、ETF 类型和价格精度；前端只负责选择与导航 | `c4f1459` |
 | `DATA-005` | 可审计历史快照包 | `INTEGRATED` | 仓库外 `manifest.json + bars.csv`、SHA-256、标的/日期/根数校验、数据集身份与结构化拒绝 | `5eae880`；[`market-snapshot.md`](market-snapshot.md) |
+| `MARKET-001` | 港股、美股与全球指数身份及比较语义 | `INTEGRATED` | 规范身份、审计目录、交易所/MIC/币种/时区/日历/provider symbol、跨市场本地日期与原币种比较语义，以及无获准 Adapter 时的结构化失败关闭 | `fe833d1`、`48808ba`；[`cross-market-identity.md`](cross-market-identity.md)；主分支 Ruff、178 项后端测试、Python 构建、76 项前端测试与前端构建通过 |
 | `UX-001` | 首页、全局导航与标的切换 | `INTEGRATED` | 无标的首页不请求 Dashboard；全局搜索、路由与旧请求抑制保持一致 | `582f7cf`、`0fe36ac` |
 | `COMPARE-001` | 2–8 标的日 K 走势对比 | `INTEGRATED` | 后端完成共同窗口、交易日并集、空缺 `null`、归一化收益、累计收益、最大回撤和逐项失败 | `a9f70f3`、`282ed69`、`2bb7c50` |
 | `COMPARE-002` | 板块速选与自定义板块 | `INTEGRATED` | 本地自定义板块版本化校验；内置行业观察组保留官方成员日、精确权重、文件哈希和身份来源 | `ff8f871`、`916bf03`、`f6e1892` |
@@ -70,9 +71,7 @@
 
 ## 已在任务分支就绪
 
-| ID | 目标 | 状态 | 分支与提交 | 分支验证与边界 |
-|---|---|---|---|---|
-| `MARKET-001` | 港股、美股与全球指数身份及比较语义 | `READY_ON_BRANCH` | `codex/cross-market-foundations@fe833d1` | Ruff、178 项后端测试、Python sdist/wheel、76 项前端测试、TypeScript/Vite 构建与 Git 空白检查通过；跨市场日 K/Quote 仍为 `BLOCKED`，未执行浏览器、真实行情、交易时段或外部授权验证 |
+当前没有已验证但尚未集成的任务分支。
 
 ## 未完成目标
 
@@ -139,6 +138,7 @@ INTRADAY-001 / VALUATION-001 / FUND-001
 
 | 日期 | 基线 | 变更 |
 |---|---|---|
+| 2026-08-06 | `main@48808ba` | `MARKET-001` 快进集成；提交关系、工作区和变更范围已核对，主分支 Ruff、178 项后端测试、Python sdist/wheel、76 项前端测试、TypeScript/Vite 构建与 Git 空白检查通过；跨市场日 K/Quote 仍为 `BLOCKED`，未执行浏览器、真实行情、交易时段、外部授权或生产验证，未推送远端 |
 | 2026-08-06 | `codex/cross-market-foundations@fe833d1` | `MARKET-001` 分支就绪；规范身份、审计目录、结构化失败关闭和跨市场本地日期/原币种比较语义完成；Ruff、178 项后端测试、Python 构建、76 项前端测试、TypeScript/Vite 构建与 Git 空白检查通过；未执行浏览器、真实跨市场行情、交易时段或外部授权验证，尚未合并或推送 |
 | 2026-08-06 | `codex/cross-market-foundations` | `MARKET-001` 获得本轮实施许可并开始独立任务分支开发；目标限定为规范身份与跨市场比较语义，未获授权的跨市场日 K/Quote 仍不得接入 |
 | 2026-08-05 | `main@124e1ac` | `RESEARCH-001` 快进集成；主分支 Ruff、157 项后端测试、Python sdist/wheel、76 项前端测试、TypeScript/Vite 构建与 Git 空白检查通过；未执行真实证券级规则、正式停牌数据或真实市场绩效验证，未推送远端 |
