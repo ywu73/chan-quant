@@ -1,7 +1,7 @@
 # Chan Quant 实现路线图与状态总账
 
 > 状态日期：2026-08-05（Asia/Shanghai）
-> 已集成基线：`main@aa9eeea`
+> 已集成基线：`main@39d0c7f`
 > 产品定位：研究与审计工具，不是交易系统或生产行情服务
 
 ## 文档职责
@@ -34,8 +34,8 @@
 
 | 状态 | 数量 | 说明 |
 |---|---:|---|
-| `INTEGRATED` | 17 | 集成事实基线 `main@aa9eeea` 已具备的产品与工程能力 |
-| `READY_ON_BRANCH` | 1 | 后端批量 Quote 接口 |
+| `INTEGRATED` | 18 | 集成事实基线 `main@39d0c7f` 已具备的产品与工程能力 |
+| `READY_ON_BRANCH` | 0 | 当前没有已验证但尚未集成的任务分支 |
 | `IN_PROGRESS` | 0 | 当前没有正在实施的已批准任务 |
 | `APPROVED_NOT_STARTED` | 0 | 当前没有已批准但尚未开工的任务 |
 | `PROPOSED` | 4 | 跨市场、估值、基金、组合事件研究闭环 |
@@ -44,7 +44,7 @@
 
 ## 已集成目标
 
-以下项目均以 `main@aa9eeea` 为集成事实基线。
+以下项目均以 `main@39d0c7f` 为集成事实基线。
 
 | ID | 目标 | 状态 | 已交付行为 | 主要证据 |
 |---|---|---|---|---|
@@ -54,23 +54,22 @@
 | `DATA-001` | CSV 日 K 输入与显式复权声明 | `INTEGRATED` | 后端验证 OHLCV、日期顺序、历史根数和输入错误；来源与复权由用户声明 | [`data-contract.md`](data-contract.md) |
 | `DATA-002` | 新浪候选日 K 与质量审计 | `INTEGRATED` | 后端低频读取沪深日 K，保留 `unadjusted-observed/unspecified` 证据边界，并支持质量与历史修订审计 | `e71a687`、`f385472`、`8f34f80`；[`sina-data-source.md`](sina-data-source.md) |
 | `DATA-003` | 独立实时 Quote 链路 | `INTEGRATED` | `QuoteSnapshot` 与日 K/策略隔离，保留行情时间、接收时间、新鲜度和失败状态 | `650f6e2`、`1cebd38` |
+| `QUOTE-001` | 后端批量 Quote 接口 | `INTEGRATED` | 一次请求接受 1–8 个规范代码，后端完成字面逗号传输、身份对应和逐项失败；比较与指数页保留 8 秒可见性轮询、取消和晚到结果抑制 | `0bf5bee`；主分支 Ruff、149 项后端测试、75 项前端测试与前端构建通过 |
 | `DATA-004` | 证券搜索与规范身份 | `INTEGRATED` | 后端解析沪深规范代码、名称、交易所、ETF 类型和价格精度；前端只负责选择与导航 | `c4f1459` |
 | `DATA-005` | 可审计历史快照包 | `INTEGRATED` | 仓库外 `manifest.json + bars.csv`、SHA-256、标的/日期/根数校验、数据集身份与结构化拒绝 | `5eae880`；[`market-snapshot.md`](market-snapshot.md) |
 | `UX-001` | 首页、全局导航与标的切换 | `INTEGRATED` | 无标的首页不请求 Dashboard；全局搜索、路由与旧请求抑制保持一致 | `582f7cf`、`0fe36ac` |
 | `COMPARE-001` | 2–8 标的日 K 走势对比 | `INTEGRATED` | 后端完成共同窗口、交易日并集、空缺 `null`、归一化收益、累计收益、最大回撤和逐项失败 | `a9f70f3`、`282ed69`、`2bb7c50` |
 | `COMPARE-002` | 板块速选与自定义板块 | `INTEGRATED` | 本地自定义板块版本化校验；内置行业观察组保留官方成员日、精确权重、文件哈希和身份来源 | `ff8f871`、`916bf03`、`f6e1892` |
-| `COMPARE-003` | 比较页独立 Quote 卡片 | `INTEGRATED` | 最多八标的并发轮询、逐项失败、可见性暂停、取消、晚到结果抑制，盘中价不覆盖历史结论 | `1fc24df`、`1cebd38`、`62db053` |
+| `COMPARE-003` | 比较页独立 Quote 卡片 | `INTEGRATED` | 最多八标的单请求批量轮询、逐项失败、可见性暂停、取消、晚到结果抑制，盘中价不覆盖历史结论 | `1fc24df`、`1cebd38`、`62db053`、`0bf5bee` |
 | `INDEX-001` | 固定宽基指数表现页 | `INTEGRATED` | 八个已核验沪深指数共享比较合同、日期快捷项、历史指标和独立 Quote | `577f15d`、`fe10bf3` |
 | `BREADTH-001` | 沪深 A 股市场温度与审计包 | `INTEGRATED` | 官方 universe、12 个非零分桶、覆盖率、不变量、质量状态和离线证据包 | `d449f51`、`6f454f9`；[`market-breadth-package.md`](market-breadth-package.md) |
 | `BREADTH-002` | 远端市场温度观测 | `INTEGRATED` | 交易所列表建立分母，新浪批量行情提供观察；300 秒缓存、强制刷新失败关闭，并显示不可审计/未文档化风险 | `6b60a93`；[`a-share-market-breadth-research.md`](a-share-market-breadth-research.md) |
-| `GOV-001` | 能力级数据源注册表与腾讯日 K/Quote 合同审计 | `INTEGRATED` | 11 条能力级来源记录、机器可读注册表及腾讯日 K/Quote NO-GO 结论已进入主分支 | `6a69a4d`；主分支 Ruff 通过、后端 133 项测试通过 |
+| `GOV-001` | 能力级数据源注册表与腾讯日 K/Quote 合同审计 | `INTEGRATED` | 12 条能力级来源记录、机器可读注册表及腾讯日 K/Quote NO-GO 结论已进入主分支 | `6a69a4d`、`0bf5bee`；主分支 Ruff 通过、后端 149 项测试通过 |
 | `GOV-002` | 单一实现路线图与状态维护规则 | `INTEGRATED` | 单一状态入口、状态定义、验收条件、依赖顺序和维护规则已进入主分支 | `aa9eeea`；文档状态数量、链接目标与 Git 空白检查通过 |
 
 ## 已在任务分支就绪
 
-| ID | 目标 | 状态 | 分支与提交 | 进入 `INTEGRATED` 前仍需完成 |
-|---|---|---|---|---|
-| `QUOTE-001` | 后端批量 Quote 接口 | `READY_ON_BRANCH` | `codex/batch-quote-api@0bf5bee` | 审查能力级 `BATCH_QUOTE` 合同和 `%2C` 负面探测边界；授权后合并，并在 `main` 重跑后端 Ruff、149 项后端测试、75 项前端测试和前端构建 |
+当前没有已验证但尚未集成的任务分支。
 
 ## 未完成目标
 
@@ -140,6 +139,7 @@ INTRADAY-001 / VALUATION-001 / FUND-001
 
 | 日期 | 基线 | 变更 |
 |---|---|---|
+| 2026-08-05 | `main@39d0c7f` | `QUOTE-001` 快进集成；主分支 Ruff、149 项后端测试、75 项前端测试与前端构建通过；能力级批量 Quote 仍限定为未文档化本地低频研究，不包含额外开市动态验收 |
 | 2026-08-05 | `codex/batch-quote-api@0bf5bee` | `QUOTE-001` 分支就绪；1–8 标的单请求、逐项失败和比较页批量轮询完成；Ruff、149 项后端测试、75 项前端测试与前端构建通过；三次 `%2C` 探测只构成负面编码证据，未执行额外开市动态验收 |
 | 2026-08-05 | `main@aa9eeea` | `GOV-002` 快进集成；路线图成为主分支的单一实现状态入口，`READY_ON_BRANCH` 归零 |
 | 2026-08-05 | `main@6a69a4d` | `GOV-001` 快进集成；主分支 Ruff 通过，后端 133 项测试通过；腾讯日 K/Quote 运行时结论仍为 NO-GO |
