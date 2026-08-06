@@ -3,7 +3,7 @@ import type { MouseEvent } from "react";
 import { InstrumentSearch } from "./InstrumentSearch";
 
 
-type SiteSection = "market" | "indices" | "comparison" | "research";
+type SiteSection = "market" | "indices" | "comparison" | "research" | "methodology";
 
 
 interface SiteHeaderProps {
@@ -12,6 +12,7 @@ interface SiteHeaderProps {
   onNavigateIndices: () => void;
   onNavigateComparison: () => void;
   onNavigateResearch: () => void;
+  onNavigateMethodology: () => void;
   onSelect: (symbol: string) => void;
 }
 
@@ -41,6 +42,7 @@ export function SiteHeader({
   onNavigateIndices,
   onNavigateComparison,
   onNavigateResearch,
+  onNavigateMethodology,
   onSelect,
 }: SiteHeaderProps) {
   return (
@@ -90,6 +92,14 @@ export function SiteHeader({
           onClick={(event) => handleInternalNavigation(event, onNavigateResearch)}
         >
           研究工作台
+        </a>
+        <a
+          className={`site-nav__item${activeSection === "methodology" ? " site-nav__item--active" : ""}`}
+          href="/methodology"
+          aria-current={activeSection === "methodology" ? "page" : undefined}
+          onClick={(event) => handleInternalNavigation(event, onNavigateMethodology)}
+        >
+          数据与方法
         </a>
       </nav>
 

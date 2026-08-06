@@ -13,6 +13,7 @@ describe("SiteHeader", () => {
         onNavigateIndices={vi.fn()}
         onNavigateComparison={vi.fn()}
         onNavigateResearch={vi.fn()}
+        onNavigateMethodology={vi.fn()}
         onSelect={vi.fn()}
       />,
     );
@@ -22,18 +23,21 @@ describe("SiteHeader", () => {
     expect(markup).toContain('aria-current="page"');
   });
 
-  it("does not mark a research navigation item active on the methodology page", () => {
+  it("exposes and marks the methodology page as a first-class navigation item", () => {
     const markup = renderToStaticMarkup(
       <SiteHeader
-        activeSection={null}
+        activeSection="methodology"
         onNavigateHome={vi.fn()}
         onNavigateIndices={vi.fn()}
         onNavigateComparison={vi.fn()}
         onNavigateResearch={vi.fn()}
+        onNavigateMethodology={vi.fn()}
         onSelect={vi.fn()}
       />,
     );
 
-    expect(markup).not.toContain('aria-current="page"');
+    expect(markup).toContain('href="/methodology"');
+    expect(markup).toContain("数据与方法");
+    expect(markup.match(/aria-current="page"/g)).toHaveLength(1);
   });
 });

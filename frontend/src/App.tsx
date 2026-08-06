@@ -324,12 +324,13 @@ export default function App() {
             : view.name === "comparison"
               ? "comparison"
               : view.name === "methodology"
-                ? null
+                ? "methodology"
                 : "research"}
         onNavigateHome={navigateHome}
         onNavigateIndices={navigateIndices}
         onNavigateComparison={navigateComparison}
         onNavigateResearch={navigateResearch}
+        onNavigateMethodology={navigateMethodology}
         onSelect={navigateToSymbol}
       />
       {view.name === "home" && (
