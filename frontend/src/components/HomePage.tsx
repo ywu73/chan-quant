@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 
 import { fetchMarketBreadth } from "../api/marketBreadth";
 import { fetchQuote } from "../api/quote";
@@ -118,7 +118,34 @@ function MarketCard({ result }: { result: MarketQuoteResult }) {
 }
 
 
-export function HomePage({ onNavigateComparison }: { onNavigateComparison: () => void }) {
+function handleInternalNavigation(
+  event: MouseEvent<HTMLAnchorElement>,
+  navigate: () => void,
+) {
+  if (
+    event.defaultPrevented
+    || event.button !== 0
+    || event.metaKey
+    || event.ctrlKey
+    || event.shiftKey
+    || event.altKey
+  ) {
+    return;
+  }
+  event.preventDefault();
+  navigate();
+}
+
+
+export function HomePage({
+  onNavigateComparison,
+  onNavigateMethodology,
+  onNavigateResearch,
+}: {
+  onNavigateComparison: () => void;
+  onNavigateMethodology: () => void;
+  onNavigateResearch: () => void;
+}) {
   const [marketResults, setMarketResults] = useState<MarketQuoteResult[]>(
     HOME_MARKET_INSTRUMENTS.map((instrument) => ({ instrument, quote: null, error: null })),
   );
@@ -210,6 +237,21 @@ export function HomePage({ onNavigateComparison }: { onNavigateComparison: () =>
           <div className="home-hero__tags" aria-label="当前支持范围">
             <span>A 股</span><span>ETF</span><span>指数</span><span>日线研究</span>
           </div>
+          <div className="home-hero__actions">
+            <a
+              className="home-hero__primary-action"
+              href="/search"
+              onClick={(event) => handleInternalNavigation(event, onNavigateResearch)}
+            >
+              开始研究
+            </a>
+            <a
+              href="/methodology"
+              onClick={(event) => handleInternalNavigation(event, onNavigateMethodology)}
+            >
+              查看数据与方法
+            </a>
+          </div>
         </div>
         <aside className="home-hero__boundary">
           <span className="home-hero__boundary-label">RESEARCH STATUS</span>
@@ -295,13 +337,28 @@ export function HomePage({ onNavigateComparison }: { onNavigateComparison: () =>
             <p className="home-section__eyebrow">DATA BOUNDARY</p>
             <h2>数据状态必须可见</h2>
             <p>合成行情、外部 CSV 和未文档化行情使用不同标识；缺失值和上游失败不会被静默替换为零或演示数字。</p>
+            <a
+              href="/methodology"
+              onClick={(event) => handleInternalNavigation(event, onNavigateMethodology)}
+            >
+              查看数据谱系、计算口径与失败语义 →
+            </a>
           </div>
         </article>
       </section>
 
       <footer className="home-footer">
         <span>Chan Quant · Independent v0.1 草案</span>
-        <span>研究与审计工具 · 不构成交易建议</span>
+        <span className="home-footer__links">
+          <a
+            href="/methodology"
+            onClick={(event) => handleInternalNavigation(event, onNavigateMethodology)}
+          >
+            数据与方法
+          </a>
+          <span aria-hidden="true">·</span>
+          <span>研究与审计工具 · 不构成交易建议</span>
+        </span>
       </footer>
     </main>
   );

@@ -7,7 +7,7 @@ type SiteSection = "market" | "indices" | "comparison" | "research";
 
 
 interface SiteHeaderProps {
-  activeSection: SiteSection;
+  activeSection: SiteSection | null;
   onNavigateHome: () => void;
   onNavigateIndices: () => void;
   onNavigateComparison: () => void;

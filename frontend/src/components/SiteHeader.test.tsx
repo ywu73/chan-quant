@@ -21,4 +21,19 @@ describe("SiteHeader", () => {
     expect(markup).toContain("指数表现");
     expect(markup).toContain('aria-current="page"');
   });
+
+  it("does not mark a research navigation item active on the methodology page", () => {
+    const markup = renderToStaticMarkup(
+      <SiteHeader
+        activeSection={null}
+        onNavigateHome={vi.fn()}
+        onNavigateIndices={vi.fn()}
+        onNavigateComparison={vi.fn()}
+        onNavigateResearch={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(markup).not.toContain('aria-current="page"');
+  });
 });

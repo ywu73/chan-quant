@@ -51,6 +51,8 @@ describe("instrument navigation", () => {
     expect(appViewFromLocation("/search/", "")).toEqual({ name: "search" });
     expect(appViewFromLocation("/compare", "")).toEqual({ name: "comparison" });
     expect(appViewFromLocation("/compare/", "")).toEqual({ name: "comparison" });
+    expect(appViewFromLocation("/methodology", "")).toEqual({ name: "methodology" });
+    expect(appViewFromLocation("/methodology/", "")).toEqual({ name: "methodology" });
   });
 
   it("opens a canonical dashboard symbol regardless of the entry path", () => {
