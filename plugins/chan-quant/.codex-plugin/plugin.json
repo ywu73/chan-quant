@@ -1,0 +1,34 @@
+{
+  "name": "chan-quant",
+  "version": "0.2.0",
+  "description": "Local Codex research adapter for the Chan Quant audit application.",
+  "author": {
+    "name": "Chan Quant contributors"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "quantitative-research",
+    "market-audit",
+    "a-share",
+    "research-preview"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Chan Quant",
+    "shortDescription": "Audit Chan Quant research locally.",
+    "longDescription": "Read-only research tools for a running local Chan Quant API. Results preserve source, timing, strategy status, warnings, and research-only boundaries.",
+    "developerName": "Chan Quant contributors",
+    "category": "Research",
+    "capabilities": [
+      "Research",
+      "Audit",
+      "Local data"
+    ],
+    "defaultPrompt": [
+      "Inspect a Chan Quant instrument snapshot.",
+      "Compare two to eight A-share instruments.",
+      "Audit a local market CSV or snapshot."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}
