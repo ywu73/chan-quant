@@ -1,6 +1,0 @@
-{
-  "schema_version": "comparison-presets-v0.1",
-  "presets": [],
-  "note": "No built-in observation groups are duplicated here until the frontend/backend shared source is migrated. User-provided symbols remain supported."
-}
-
