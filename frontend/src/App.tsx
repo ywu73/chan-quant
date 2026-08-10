@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { fetchDashboard } from "./api/dashboard";
 import { fetchQuote } from "./api/quote";
+import { fetchRuntimeCapabilities } from "./api/runtime";
 import { ChanChart } from "./components/ChanChart";
 import { ComparisonPage } from "./components/ComparisonPage";
 import { DataMethodologyPage } from "./components/DataMethodologyPage";
@@ -15,8 +16,10 @@ import { PortfolioStudyPanel } from "./components/PortfolioStudyPanel";
 import { QuotePanel } from "./components/QuotePanel";
 import { SiteHeader } from "./components/SiteHeader";
 import { startQuotePolling } from "./quotePolling";
+import { remoteRequestsAllowed, safeRuntimeCapabilities } from "./runtimeMode";
 import type { DashboardSnapshot } from "./types/dashboard";
 import type { QuoteSnapshot } from "./types/quote";
+import type { RuntimeCapabilities } from "./types/runtime";
 
 
 export function symbolFromSearch(search: string): string | null {
@@ -189,8 +192,10 @@ function Dashboard({
 
 function ResearchWorkspace({
   symbol,
+  remoteNetworkEnabled,
 }: {
   symbol: string;
+  remoteNetworkEnabled: boolean;
 }) {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -210,20 +215,27 @@ function ResearchWorkspace({
     return () => controller.abort();
   }, [symbol]);
 
-  useEffect(() => startQuotePolling({
-    symbol,
-    fetchQuote,
-    onQuote: (nextQuote) => {
-      setQuote(nextQuote);
-      setQuoteError(null);
-    },
-    onError: (reason) => {
+  useEffect(() => {
+    if (!remoteNetworkEnabled) {
       setQuote(null);
-      setQuoteError(reason instanceof Error ? reason.message : "实时行情不可用");
-    },
-    visibilitySource: document,
-    intervalMs: 8_000,
-  }), [symbol]);
+      setQuoteError("远端行情已由运行配置关闭");
+      return undefined;
+    }
+    return startQuotePolling({
+      symbol,
+      fetchQuote,
+      onQuote: (nextQuote) => {
+        setQuote(nextQuote);
+        setQuoteError(null);
+      },
+      onError: (reason) => {
+        setQuote(null);
+        setQuoteError(reason instanceof Error ? reason.message : "实时行情不可用");
+      },
+      visibilitySource: document,
+      intervalMs: 8_000,
+    });
+  }, [remoteNetworkEnabled, symbol]);
 
   if (error || !snapshot) {
     return (
@@ -252,6 +264,26 @@ export default function App() {
   const [view, setView] = useState<AppView>(() => (
     appViewFromLocation(window.location.pathname, window.location.search)
   ));
+  const [runtimeCapabilities, setRuntimeCapabilities] = useState<RuntimeCapabilities | null>(null);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchRuntimeCapabilities(controller.signal)
+      .then((capabilities) => {
+        setRuntimeCapabilities(capabilities);
+        setRuntimeError(null);
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setRuntimeCapabilities(null);
+        setRuntimeError(reason instanceof Error ? reason.message : "运行能力合同不可用");
+      });
+    return () => controller.abort();
+  }, []);
+
+  const capabilities = safeRuntimeCapabilities(runtimeCapabilities);
+  const remoteNetworkEnabled = remoteRequestsAllowed(runtimeCapabilities);
 
   useEffect(() => {
     const handlePopState = () => setView(
@@ -332,23 +364,57 @@ export default function App() {
         onNavigateResearch={navigateResearch}
         onNavigateMethodology={navigateMethodology}
         onSelect={navigateToSymbol}
+        remoteNetworkEnabled={remoteNetworkEnabled}
       />
+      {(runtimeError || !remoteNetworkEnabled) && (
+        <div className={`runtime-banner${runtimeError ? " runtime-banner--error" : ""}`} role="status">
+          <strong>{runtimeError ? "保守离线模式" : "离线研究演示"}</strong>
+          <span>
+            {runtimeError
+              ? `${runtimeError}；远端请求保持关闭。`
+              : `数据模式 ${capabilities.data_mode} · 远端行情、搜索、比较与市场温度已关闭。`}
+          </span>
+        </div>
+      )}
       {view.name === "home" && (
         <HomePage
           onNavigateComparison={navigateComparison}
           onNavigateMethodology={navigateMethodology}
           onNavigateResearch={navigateResearch}
+          remoteNetworkEnabled={remoteNetworkEnabled}
+          forceRefreshEnabled={capabilities.force_refresh_enabled}
         />
       )}
-      {view.name === "indices" && <IndexPerformancePage />}
-      {view.name === "search" && <LandingPage onSelect={navigateToSymbol} />}
-      {view.name === "comparison" && <ComparisonPage />}
+      {view.name === "indices" && (remoteNetworkEnabled
+        ? <IndexPerformancePage />
+        : <RemoteCapabilityUnavailable title="指数表现" />)}
+      {view.name === "search" && (remoteNetworkEnabled
+        ? <LandingPage onSelect={navigateToSymbol} />
+        : <RemoteCapabilityUnavailable title="证券搜索" />)}
+      {view.name === "comparison" && (remoteNetworkEnabled
+        ? <ComparisonPage />
+        : <RemoteCapabilityUnavailable title="走势对比" />)}
       {view.name === "methodology" && (
         <DataMethodologyPage onNavigateHome={navigateHome} />
       )}
       {view.name === "dashboard" && (
-        <ResearchWorkspace key={view.symbol} symbol={view.symbol} />
+        <ResearchWorkspace
+          key={view.symbol}
+          symbol={view.symbol}
+          remoteNetworkEnabled={remoteNetworkEnabled}
+        />
       )}
     </>
+  );
+}
+
+
+function RemoteCapabilityUnavailable({ title }: { title: string }) {
+  return (
+    <main className="remote-capability-state">
+      <p className="eyebrow">OFFLINE RESEARCH DEMO</p>
+      <h1>{title}在当前部署中不可用</h1>
+      <p>运行配置已关闭远端市场网络；页面不会尝试调用必然失败的第三方能力。</p>
+    </main>
   );
 }

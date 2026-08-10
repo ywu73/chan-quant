@@ -134,4 +134,21 @@ describe("MarketBreadthPanel", () => {
     expect(markup).toContain("市场温度不可用（HTTP 502）：新浪远端读取失败");
     expect(markup).not.toContain('data-testid="market-breadth-chart"');
   });
+
+
+  it("explains offline mode and omits the force refresh action", () => {
+    const markup = renderToStaticMarkup(
+      <MarketBreadthPanel
+        snapshot={null}
+        isLoading={false}
+        error={null}
+        onRefresh={() => {}}
+        remoteNetworkEnabled={false}
+        forceRefreshEnabled={false}
+      />,
+    );
+
+    expect(markup).toContain("远端市场温度已关闭");
+    expect(markup).not.toContain("<button");
+  });
 });

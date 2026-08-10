@@ -227,6 +227,13 @@ npm test
 npm run build
 ```
 
+## 私有 staging 部署
+
+仓库提供单机 Docker Compose + Caddy 的私有 staging 制品，默认使用合成数据并关闭远端
+市场网络。配置、认证、只读数据挂载、健康检查、冒烟、升级与回滚见
+[`docs/deployment.md`](docs/deployment.md)。这只是可复现的部署骨架，不表示服务已经上线，
+也不扩展第三方行情的授权边界。
+
 规则口径、数据合同、架构和产品边界见 `docs/`。
 
 ## 边界

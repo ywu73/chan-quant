@@ -1,10 +1,13 @@
 import os
 from datetime import date
+from pathlib import Path
 from typing import Annotated, Literal, cast
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from chan_quant import __version__
 from chan_quant.data.csv_source import CsvDataError, load_csv_bars
 from chan_quant.data.market_snapshot import MarketSnapshotError, load_market_snapshot
 from chan_quant.data.remote_market_breadth import (
@@ -42,6 +45,13 @@ from chan_quant.domain.instrument_catalog import (
 )
 from chan_quant.domain.market_breadth import MarketBreadthRejection, MarketBreadthSnapshot
 from chan_quant.domain.quote import QuoteBatch, QuoteSnapshot
+from chan_quant.runtime_config import (
+    RuntimeConfigError,
+    configured_data_mode,
+    docs_enabled_for_startup,
+    load_runtime_config,
+    remote_network_enabled,
+)
 from chan_quant.services.dashboard_builder import build_dashboard
 from chan_quant.services.demo_market import build_demo_bars
 from chan_quant.services.market_comparison import (
@@ -50,14 +60,7 @@ from chan_quant.services.market_comparison import (
     build_market_comparison,
 )
 
-app = FastAPI(
-    title="Chan Quant API",
-    version="0.1.0",
-    description=(
-        "Auditable Independent v0.1 research API with synthetic, CSV, immutable "
-        "local snapshots, or undocumented Sina K-line data."
-    ),
-)
+router = APIRouter()
 
 COMPARISON_MIN_SYMBOLS = 2
 COMPARISON_MAX_SYMBOLS = 8
@@ -65,21 +68,8 @@ COMPARISON_MAX_WORKERS = 4
 BATCH_QUOTE_MIN_SYMBOLS = 1
 BATCH_QUOTE_MAX_SYMBOLS = 8
 
-DataMode = Literal["synthetic", "csv", "sina", "snapshot"]
-
-_TRUE_VALUES = {"1", "true", "yes", "on"}
-_FALSE_VALUES = {"0", "false", "no", "off"}
-
-
 def _remote_network_enabled() -> bool:
-    raw = os.getenv("CHAN_QUANT_REMOTE_NETWORK_ENABLED", "true").strip().lower()
-    if raw in _TRUE_VALUES:
-        return True
-    if raw in _FALSE_VALUES:
-        return False
-    raise ValueError(
-        "CHAN_QUANT_REMOTE_NETWORK_ENABLED must be true/false, 1/0, yes/no, or on/off"
-    )
+    return remote_network_enabled()
 
 
 def _require_remote_network() -> None:
@@ -143,15 +133,8 @@ def _reject_unsupported_market_data(symbols: list[str], capability: str) -> None
         )
 
 
-def _configured_data_mode() -> DataMode:
-    configured = os.getenv("CHAN_QUANT_DATA_SOURCE", "").strip().lower()
-    if not configured:
-        if os.getenv("CHAN_QUANT_DATA_PACKAGE_PATH"):
-            return "snapshot"
-        return "csv" if os.getenv("CHAN_QUANT_CSV_PATH") else "synthetic"
-    if configured not in {"synthetic", "csv", "sina", "snapshot"}:
-        raise ValueError("CHAN_QUANT_DATA_SOURCE must be synthetic, csv, sina, or snapshot")
-    return cast(DataMode, configured)
+def _configured_data_mode() -> Literal["synthetic", "csv", "sina", "snapshot"]:
+    return configured_data_mode()
 
 
 def _sina_datalen() -> int:
@@ -218,16 +201,7 @@ def _sina_comparison_input(symbol: str) -> ComparisonInput:
     )
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=False,
-    allow_methods=["GET"],
-    allow_headers=["*"],
-)
-
-
-@app.get("/health")
+@router.get("/health")
 def health() -> dict[str, str]:
     status = "ok"
     try:
@@ -248,7 +222,78 @@ def health() -> dict[str, str]:
     }
 
 
-@app.get(
+@router.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "alive", "service": "chan-quant-api"}
+
+
+def _path_is_readable_file(path: Path) -> bool:
+    return path.is_file() and os.access(path, os.R_OK)
+
+
+@router.get("/readyz")
+def readyz() -> dict[str, str]:
+    try:
+        config = load_runtime_config()
+    except RuntimeConfigError as error:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "RUNTIME_CONFIGURATION_INVALID",
+                "message": str(error),
+            },
+        ) from error
+
+    if config.data_mode == "csv":
+        if not config.csv_path or not _path_is_readable_file(Path(config.csv_path)):
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "RUNTIME_DATA_PATH_UNAVAILABLE",
+                    "message": "configured csv data path is not a readable file",
+                },
+            )
+    elif config.data_mode == "snapshot":
+        package = Path(config.snapshot_path) if config.snapshot_path else None
+        required_files = ("manifest.json", "bars.csv")
+        if package is None or any(
+            not _path_is_readable_file(package / name) for name in required_files
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "RUNTIME_DATA_PATH_UNAVAILABLE",
+                    "message": "configured snapshot package is not readable",
+                },
+            )
+
+    return {"status": "ready", "service": "chan-quant-api"}
+
+
+@router.get("/version")
+def version() -> dict[str, str]:
+    config = load_runtime_config()
+    return {
+        "application_version": __version__,
+        "strategy_version": "independent-v0.1.0",
+        "environment": config.environment,
+        "release_sha": config.release_sha,
+    }
+
+
+@router.get("/api/v1/runtime-capabilities")
+def runtime_capabilities() -> dict[str, str | bool]:
+    config = load_runtime_config()
+    return {
+        "data_mode": config.data_mode,
+        "remote_network_enabled": config.remote_network_enabled,
+        "force_refresh_enabled": config.force_refresh_enabled,
+        "research_preview": config.research_preview,
+        "release_sha": config.release_sha,
+    }
+
+
+@router.get(
     "/api/v1/instruments/search",
     response_model=InstrumentSearchResponse,
 )
@@ -273,7 +318,7 @@ def instrument_search(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-@app.get(
+@router.get(
     "/api/v1/instruments/catalog",
     response_model=InstrumentCatalogResponse,
 )
@@ -281,7 +326,7 @@ def instrument_catalog(market: MarketCode | None = None) -> InstrumentCatalogRes
     return InstrumentCatalogResponse(items=list_catalog_instruments(market))
 
 
-@app.get(
+@router.get(
     "/api/v1/instruments/{symbol}",
     response_model=InstrumentIdentity,
 )
@@ -311,7 +356,7 @@ def instrument_identity(symbol: str) -> InstrumentIdentity:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-@app.get(
+@router.get(
     "/api/v1/market-comparison",
     response_model=MarketComparison,
 )
@@ -346,7 +391,7 @@ def market_comparison(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-@app.get(
+@router.get(
     "/api/v1/quotes",
     response_model=QuoteBatch,
 )
@@ -366,7 +411,7 @@ def quote_batch(symbols: Annotated[list[str] | None, Query()] = None) -> QuoteBa
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-@app.get(
+@router.get(
     "/api/v1/instruments/{symbol}/quote",
     response_model=QuoteSnapshot,
 )
@@ -383,7 +428,7 @@ def quote(symbol: str) -> QuoteSnapshot:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
-@app.get(
+@router.get(
     "/api/v1/market-breadth",
     response_model=MarketBreadthSnapshot,
 )
@@ -397,6 +442,25 @@ def market_breadth(
             message="market must be CN_A_SH_SZ_V1",
         )
         raise HTTPException(status_code=422, detail=rejection.model_dump())
+    if refresh:
+        try:
+            force_refresh_enabled = load_runtime_config().force_refresh_enabled
+        except RuntimeConfigError as error:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "RUNTIME_CONFIGURATION_INVALID",
+                    "message": str(error),
+                },
+            ) from error
+        if not force_refresh_enabled:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "FORCE_REFRESH_DISABLED",
+                    "message": "forced market breadth refresh is disabled by runtime policy",
+                },
+            )
     _require_remote_network()
     try:
         return remote_market_breadth_service.get(force_refresh=refresh)
@@ -405,7 +469,7 @@ def market_breadth(
         raise HTTPException(status_code=502, detail=rejection.model_dump()) from error
 
 
-@app.get(
+@router.get(
     "/api/v1/instruments/{symbol}/dashboard",
     response_model=DashboardSnapshot,
 )
@@ -489,3 +553,45 @@ def dashboard(
         raise HTTPException(status_code=422, detail=rejection.model_dump()) from error
     except (CsvDataError, SinaDataError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+def create_app() -> FastAPI:
+    try:
+        docs_enabled = docs_enabled_for_startup()
+    except RuntimeConfigError:
+        docs_enabled = False
+
+    application = FastAPI(
+        title="Chan Quant API",
+        version=__version__,
+        description=(
+            "Auditable Independent v0.1 research API with synthetic, CSV, immutable "
+            "local snapshots, or undocumented Sina K-line data."
+        ),
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
+    )
+
+    try:
+        config = load_runtime_config()
+        allowed_hosts = list(config.allowed_hosts)
+        environment = config.environment
+    except RuntimeConfigError:
+        allowed_hosts = ["localhost", "127.0.0.1", "testserver"]
+        environment = os.getenv("CHAN_QUANT_ENVIRONMENT", "development").strip().lower()
+
+    if environment != "production":
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+            allow_credentials=False,
+            allow_methods=["GET"],
+            allow_headers=["*"],
+        )
+    application.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+    application.include_router(router)
+    return application
+
+
+app = create_app()

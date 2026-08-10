@@ -18,11 +18,15 @@ export function MarketBreadthPanel({
   isLoading,
   error,
   onRefresh,
+  remoteNetworkEnabled = true,
+  forceRefreshEnabled = true,
 }: {
   snapshot: MarketBreadthSnapshot | null;
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
+  remoteNetworkEnabled?: boolean;
+  forceRefreshEnabled?: boolean;
 }) {
   const canShowDistribution = snapshot?.status === "COMPLETE" || snapshot?.status === "PARTIAL";
   const maxCount = snapshot ? Math.max(1, ...snapshot.bins.map((item) => item.count)) : 1;
@@ -35,14 +39,23 @@ export function MarketBreadthPanel({
           <h2 id="market-breadth-title">沪深 A 股市场温度</h2>
         </div>
         <div className="home-section__actions">
-          <span className="home-breadth__mode">新浪远端观测</span>
-          <button type="button" onClick={onRefresh} disabled={isLoading}>
-            {isLoading ? "读取中" : "刷新"}
-          </button>
+          <span className="home-breadth__mode">
+            {remoteNetworkEnabled ? "新浪远端观测" : "离线部署模式"}
+          </span>
+          {remoteNetworkEnabled && forceRefreshEnabled && (
+            <button type="button" onClick={onRefresh} disabled={isLoading}>
+              {isLoading ? "读取中" : "刷新"}
+            </button>
+          )}
         </div>
       </div>
 
-      {error ? (
+      {!remoteNetworkEnabled ? (
+        <div className="home-breadth__state">
+          <strong>远端市场温度已关闭</strong>
+          <span>离线研究演示不会请求交易所列表或第三方逐证券行情。</span>
+        </div>
+      ) : error ? (
         <div className="home-breadth__state home-breadth__state--error">
           <strong>远端市场温度读取失败</strong>
           <span>{error}</span>

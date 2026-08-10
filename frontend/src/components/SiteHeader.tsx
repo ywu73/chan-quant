@@ -14,6 +14,7 @@ interface SiteHeaderProps {
   onNavigateResearch: () => void;
   onNavigateMethodology: () => void;
   onSelect: (symbol: string) => void;
+  remoteNetworkEnabled?: boolean;
 }
 
 
@@ -44,6 +45,7 @@ export function SiteHeader({
   onNavigateResearch,
   onNavigateMethodology,
   onSelect,
+  remoteNetworkEnabled = true,
 }: SiteHeaderProps) {
   return (
     <header className="site-header">
@@ -103,10 +105,16 @@ export function SiteHeader({
         </a>
       </nav>
 
-      <InstrumentSearch
-        variant="compact"
-        onSelect={(instrument) => onSelect(instrument.symbol)}
-      />
+      {remoteNetworkEnabled ? (
+        <InstrumentSearch
+          variant="compact"
+          onSelect={(instrument) => onSelect(instrument.symbol)}
+        />
+      ) : (
+        <div className="site-header__offline-search" role="status">
+          离线模式：远端证券搜索已关闭
+        </div>
+      )}
     </header>
   );
 }

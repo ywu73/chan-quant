@@ -160,6 +160,7 @@ def test_market_breadth_endpoint_exposes_remote_snapshot(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("CHAN_QUANT_ALLOW_FORCE_REFRESH", "true")
     package = tmp_path / "breadth"
     _write_package(package)
     snapshot = load_market_breadth_package(package).model_copy(update={"mode": "OBSERVED"})

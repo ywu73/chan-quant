@@ -141,10 +141,14 @@ export function HomePage({
   onNavigateComparison,
   onNavigateMethodology,
   onNavigateResearch,
+  remoteNetworkEnabled = true,
+  forceRefreshEnabled = true,
 }: {
   onNavigateComparison: () => void;
   onNavigateMethodology: () => void;
   onNavigateResearch: () => void;
+  remoteNetworkEnabled?: boolean;
+  forceRefreshEnabled?: boolean;
 }) {
   const [marketResults, setMarketResults] = useState<MarketQuoteResult[]>(
     HOME_MARKET_INSTRUMENTS.map((instrument) => ({ instrument, quote: null, error: null })),
@@ -163,6 +167,10 @@ export function HomePage({
   );
 
   useEffect(() => {
+    if (!remoteNetworkEnabled) {
+      setIsRefreshing(false);
+      return undefined;
+    }
     let active = true;
     const controller = new AbortController();
     setIsRefreshing(true);
@@ -181,9 +189,15 @@ export function HomePage({
       active = false;
       controller.abort();
     };
-  }, [refreshVersion]);
+  }, [refreshVersion, remoteNetworkEnabled]);
 
   useEffect(() => {
+    if (!remoteNetworkEnabled) {
+      setIsBreadthLoading(false);
+      setBreadthSnapshot(null);
+      setBreadthError(null);
+      return undefined;
+    }
     let active = true;
     const controller = new AbortController();
     setIsBreadthLoading(true);
@@ -209,16 +223,17 @@ export function HomePage({
       active = false;
       controller.abort();
     };
-  }, [breadthRefreshVersion]);
+  }, [breadthRefreshVersion, remoteNetworkEnabled]);
 
   useEffect(() => {
+    if (!remoteNetworkEnabled) return undefined;
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         refresh();
       }
     }, 60_000);
     return () => window.clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, remoteNetworkEnabled]);
 
   const latestReceivedAt = marketResults
     .flatMap((result) => result.quote?.received_at ? [result.quote.received_at] : [])
@@ -267,21 +282,32 @@ export function HomePage({
             <p className="home-section__eyebrow">MARKET SNAPSHOT</p>
             <h2 id="market-snapshot-title">主要指数快照</h2>
           </div>
-          <div className="home-section__actions">
-            <span>{latestReceivedAt ? `接收于 ${formatQuoteTime(latestReceivedAt)}` : "等待行情响应"}</span>
-            <button type="button" onClick={refresh} disabled={isRefreshing}>
-              {isRefreshing ? "刷新中" : "刷新"}
-            </button>
+          {remoteNetworkEnabled && (
+            <div className="home-section__actions">
+              <span>{latestReceivedAt ? `接收于 ${formatQuoteTime(latestReceivedAt)}` : "等待行情响应"}</span>
+              <button type="button" onClick={refresh} disabled={isRefreshing}>
+                {isRefreshing ? "刷新中" : "刷新"}
+              </button>
+            </div>
+          )}
+        </div>
+        {remoteNetworkEnabled ? (
+          <>
+            <p className="home-section__note">
+              新浪未文档化行情的独立快照；不进入日线策略链路，也不代表交易级行情服务。
+            </p>
+            <div className="home-market-grid">
+              {marketResults.map((result) => (
+                <MarketCard key={result.instrument.symbol} result={result} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="home-offline-state" role="status">
+            <strong>离线研究演示</strong>
+            <span>远端指数快照已关闭；合成 Dashboard 与静态方法论仍可使用。</span>
           </div>
-        </div>
-        <p className="home-section__note">
-          新浪未文档化行情的独立快照；不进入日线策略链路，也不代表交易级行情服务。
-        </p>
-        <div className="home-market-grid">
-          {marketResults.map((result) => (
-            <MarketCard key={result.instrument.symbol} result={result} />
-          ))}
-        </div>
+        )}
       </section>
 
       <MarketBreadthPanel
@@ -289,6 +315,8 @@ export function HomePage({
         isLoading={isBreadthLoading}
         error={breadthError}
         onRefresh={refreshBreadth}
+        remoteNetworkEnabled={remoteNetworkEnabled}
+        forceRefreshEnabled={forceRefreshEnabled}
       />
 
       <section className="home-section" aria-labelledby="research-modules-title">

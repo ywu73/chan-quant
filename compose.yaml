@@ -1,0 +1,72 @@
+name: chan-quant-staging
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        RELEASE_SHA: ${CHAN_QUANT_RELEASE_SHA:-development}
+    environment:
+      CHAN_QUANT_ENVIRONMENT: ${CHAN_QUANT_ENVIRONMENT:-production}
+      CHAN_QUANT_DATA_SOURCE: ${CHAN_QUANT_DATA_SOURCE:-synthetic}
+      CHAN_QUANT_REMOTE_NETWORK_ENABLED: ${CHAN_QUANT_REMOTE_NETWORK_ENABLED:-false}
+      CHAN_QUANT_ALLOW_FORCE_REFRESH: ${CHAN_QUANT_ALLOW_FORCE_REFRESH:-false}
+      CHAN_QUANT_DOCS_ENABLED: ${CHAN_QUANT_DOCS_ENABLED:-false}
+      CHAN_QUANT_ALLOWED_HOSTS: ${CHAN_QUANT_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CHAN_QUANT_RELEASE_SHA: ${CHAN_QUANT_RELEASE_SHA:-development}
+      CHAN_QUANT_CSV_PATH: ${CHAN_QUANT_CSV_PATH:-}
+      CHAN_QUANT_DATA_PACKAGE_PATH: ${CHAN_QUANT_DATA_PACKAGE_PATH:-}
+    networks:
+      - application
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - type: bind
+        source: ${CHAN_QUANT_DATA_MOUNT:-./data}
+        target: /market-data
+        read_only: true
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      CHAN_QUANT_BASIC_AUTH_USER: ${CHAN_QUANT_BASIC_AUTH_USER:?set a private staging username}
+      CHAN_QUANT_BASIC_AUTH_HASH: ${CHAN_QUANT_BASIC_AUTH_HASH:?set a Caddy password hash}
+    networks:
+      - application
+      - edge
+    ports:
+      - "127.0.0.1:${CHAN_QUANT_WEB_PORT:-8080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--output-document=-", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 6
+    restart: unless-stopped
+
+networks:
+  application:
+    internal: true
+  edge:
+
+volumes:
+  caddy_data:
+  caddy_config:

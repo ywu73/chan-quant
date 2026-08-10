@@ -72,6 +72,22 @@ def test_remote_only_endpoints_fail_closed_when_network_is_disabled(monkeypatch)
         }
 
 
+def test_market_breadth_force_refresh_is_rejected_before_remote_access(monkeypatch) -> None:
+    monkeypatch.setenv("CHAN_QUANT_REMOTE_NETWORK_ENABLED", "false")
+    monkeypatch.setenv("CHAN_QUANT_ALLOW_FORCE_REFRESH", "false")
+
+    response = client.get(
+        "/api/v1/market-breadth",
+        params={"market": "CN_A_SH_SZ_V1", "refresh": "true"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == {
+        "code": "FORCE_REFRESH_DISABLED",
+        "message": "forced market breadth refresh is disabled by runtime policy",
+    }
+
+
 def test_synthetic_dashboard_remains_available_when_network_is_disabled(monkeypatch) -> None:
     monkeypatch.setenv("CHAN_QUANT_REMOTE_NETWORK_ENABLED", "false")
     monkeypatch.setenv("CHAN_QUANT_DATA_SOURCE", "synthetic")

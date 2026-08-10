@@ -2726,6 +2726,51 @@ h2 {
 .page-state--error { color: #b64c43; }
 .page-state--within { min-height: 55vh; }
 
+.runtime-banner,
+.home-offline-state,
+.site-header__offline-search,
+.remote-capability-state {
+  border: 1px solid #d8e1ec;
+  background: #f7f9fc;
+  color: #56667b;
+}
+
+.runtime-banner {
+  display: flex;
+  gap: 12px;
+  width: min(100% - 40px, 1920px);
+  margin: 10px auto 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.runtime-banner strong { color: #2f4057; }
+.runtime-banner--error { border-color: #e7c2be; background: #fff7f6; }
+
+.site-header__offline-search {
+  padding: 11px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.home-offline-state {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 22px;
+  border-radius: 12px;
+}
+
+.remote-capability-state {
+  width: min(100% - 40px, 1200px);
+  min-height: 300px;
+  margin: 18px auto;
+  padding: 48px;
+  border-radius: 18px;
+}
+
 @media (max-width: 1320px) {
   .site-header {
     grid-template-columns: max-content max-content minmax(330px, 1fr);
